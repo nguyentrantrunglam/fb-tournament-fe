@@ -1,6 +1,17 @@
 export type CategoryRegistrationStatus = 'not_open' | 'open' | 'closed'
 export type GenderRequirement = 'men_only' | 'women_only' | 'mixed_pair' | 'unrestricted'
 
+// Slim view cho màn Lệ phí & QR — set lệ phí từng nội dung
+export type CategoryFeeItem = {
+  id: string
+  code: string
+  name: string
+  playerCount: 1 | 2
+  genderRequirement: GenderRequirement
+  fee: number // VND, 0 = miễn phí
+  registrationStatus: CategoryRegistrationStatus
+}
+
 export type CategoryWithStats = {
   id: string
   tournamentId: string

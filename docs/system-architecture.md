@@ -119,7 +119,7 @@ erDiagram
         string bannerUrl "nullable"
         string rulesText "rich text, nullable"
         json sponsors "array of {name, logoUrl, websiteUrl}"
-        json paymentInfo "{qrUrl, bankInfoText}"
+        json paymentConfig "{accountHolder, accountNumber, bankCode, transferMemoTemplate, qrUrl}"
         bool isPublic
         string ownerUid FK
         enum status "draft|open|running|completed|cancelled"
@@ -263,7 +263,7 @@ cccdIndex/{cccd}                         # Lookup uniqueness; NO client read acc
 └── { userId: string, createdAt: timestamp }
 
 tournaments/{tournamentId}
-├── (fields: Tournament entity, incl. sponsors[], paymentInfo, bannerUrl, rulesText)
+├── (fields: Tournament entity, incl. sponsors[], paymentConfig, bannerUrl, rulesText)
 ├── roles/{userId}                       # TournamentRole — doc id = userId để unique
 ├── courts/{courtId}                     # incl. currentRefereeUid, currentMatchId, status
 ├── categories/{categoryId}

@@ -1,3 +1,5 @@
+import type { PaymentConfig } from './payment'
+
 // status từ system-architecture.md §ERD Tournament
 export type TournamentStatus = 'draft' | 'open' | 'running' | 'completed' | 'cancelled'
 
@@ -18,7 +20,7 @@ export type Tournament = {
   bannerUrl: string | null
   rulesText: string | null
   sponsors: TournamentSponsor[]
-  paymentInfo: { qrUrl: string; bankInfoText: string } | null
+  paymentConfig: PaymentConfig | null
   isPublic: boolean
   ownerUid: string
   status: TournamentStatus

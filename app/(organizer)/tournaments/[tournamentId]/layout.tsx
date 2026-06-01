@@ -15,7 +15,7 @@ async function getTournament(id: string): Promise<Tournament> {
     bannerUrl: null,
     rulesText: null,
     sponsors: [],
-    paymentInfo: null,
+    paymentConfig: null,
     isPublic: true,
     ownerUid: 'uid-placeholder',
     status: 'running',

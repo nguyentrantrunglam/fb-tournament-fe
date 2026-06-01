@@ -47,7 +47,7 @@ function PreviewCard({
   categories: string[];
 }) {
   return (
-    <div className="w-[280px] flex-shrink-0 border-l border-zinc-800 p-5 flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">
         Preview · Thẻ giải
       </p>
@@ -217,7 +217,7 @@ export function TournamentInfoClient({
         actions={actions}
       />
 
-      <PageBody sidePanel={<PreviewCard data={formData} categories={categories} />}>
+      <PageBody preview={<PreviewCard data={formData} categories={categories} />}>
         {/* Tabs nav */}
         <div className="px-8 border-b border-zinc-800">
           <div className="flex">

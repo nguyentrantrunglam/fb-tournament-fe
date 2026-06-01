@@ -73,7 +73,7 @@ Hệ thống web cho phép bất kỳ ai cũng có thể:
 - **Banner** (ảnh bìa, upload Firebase Storage).
 - **Thể lệ** (rich text dài — luật chơi, quy định riêng).
 - **Nhà tài trợ** (danh sách sponsors): mỗi sponsor có `name`, `logoUrl`, `websiteUrl` (nullable).
-- **Phương thức thanh toán**: ảnh mã QR (upload), thông tin tài khoản ngân hàng (text).
+- **Phương thức thanh toán** (`paymentConfig`): tên chủ tài khoản, số tài khoản, ngân hàng (mã napas), template nội dung CK gợi ý (biến `{tên_VĐV}` `{mã_hạng_mục}` `{số_điện_thoại}`), ảnh mã QR (upload — MVP không tự gen từ STK).
 
 **Visibility:**
 - Toggle `isPublic` (mặc định false). Public = hiện ở trang chủ + ai cũng vào xem được. Private = chỉ organizer + participant.

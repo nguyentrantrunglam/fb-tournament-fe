@@ -5,12 +5,12 @@ import { cn } from '@/lib/utils'
  *
  * Scroll behavior:
  *   - PageHeader (tầng 1) scroll lên bình thường
- *   - Khi header biến khỏi viewport → sidePanel sticky tại top-0
+ *   - Khi header biến khỏi viewport → panel preview sticky tại top-0
  *   - mainContent tiếp tục scroll cùng page
  *
  * Dùng khi:
- *   - Màn hình có một panel phụ bên phải cần sticky (preview, summary, help)
- *   - Dùng không có sidePanel → layout 1 cột đơn giản
+ *   - Màn hình có panel preview cần sticky (preview public, summary, help) → 40%
+ *   - Không có preview → layout 1 cột đơn giản
  */
 
 // ─── PageHeader ──────────────────────────────────────────────────────────────
@@ -43,38 +43,47 @@ export function PageHeader({ title, description, actions, className }: PageHeade
 type PageBodyProps = {
   /** Nội dung chính (tabs + form, table, v.v.) */
   children: React.ReactNode
-  /** Panel phụ sticky — xuất hiện bên trái hoặc phải nội dung chính */
-  sidePanel?: React.ReactNode
-  /** Vị trí side panel. Mặc định: 'right' */
-  sidePanelSide?: 'left' | 'right'
-  /** Width của side panel tính bằng px. Mặc định: 280 */
-  sidePanelWidth?: number
+  /** Panel preview sticky — bên trái hoặc phải nội dung chính */
+  preview?: React.ReactNode
+  /** Vị trí preview. Mặc định: 'right' */
+  previewSide?: 'left' | 'right'
+  /** Bề rộng preview tính bằng %. Mặc định: 40 (chuẩn cho mọi màn có preview) */
+  previewWidthPct?: number
 }
 
+/**
+ * Layout chuẩn 2 cột cho mọi màn có preview: nội dung chính (flex-1) + panel preview
+ * sticky chiếm `previewWidthPct`% (mặc định 40%). Panel chỉ lo positioning + width;
+ * chrome (border/padding nội dung) do component preview tự quyết.
+ * Không truyền `preview` → render 1 cột full-width.
+ */
 export function PageBody({
   children,
-  sidePanel,
-  sidePanelSide = 'right',
-  sidePanelWidth = 280,
+  preview,
+  previewSide = 'right',
+  previewWidthPct = 40,
 }: PageBodyProps) {
-  if (!sidePanel) {
+  if (!preview) {
     return <div>{children}</div>
   }
 
   const panel = (
     <div
-      className="sticky top-0 self-start flex-shrink-0"
-      style={{ width: sidePanelWidth }}
+      className={cn(
+        'sticky top-0 self-start flex-shrink-0 p-6 border-zinc-800',
+        previewSide === 'left' ? 'border-r' : 'border-l',
+      )}
+      style={{ width: `${previewWidthPct}%` }}
     >
-      {sidePanel}
+      {preview}
     </div>
   )
 
   return (
     <div className="flex items-start">
-      {sidePanelSide === 'left' && panel}
+      {previewSide === 'left' && panel}
       <div className="flex-1 min-w-0">{children}</div>
-      {sidePanelSide === 'right' && panel}
+      {previewSide === 'right' && panel}
     </div>
   )
 }
