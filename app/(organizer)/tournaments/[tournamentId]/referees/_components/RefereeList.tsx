@@ -65,9 +65,9 @@ export function RefereeList({ referees, tournamentId }: Props) {
   }
 
   return (
-    <div className="px-8 py-7">
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-6 mb-1">
+    <div className="flex flex-col h-full">
+      {/* ── Header (cố định) ── */}
+      <div className="flex-shrink-0 flex items-start justify-between gap-6 px-8 pt-7 pb-4">
         <div>
           <h1 className="text-[22px] font-bold text-white leading-tight">Trọng tài</h1>
           <p className="text-[13px] text-zinc-400 mt-1">{description}</p>
@@ -91,6 +91,8 @@ export function RefereeList({ referees, tournamentId }: Props) {
         </div>
       </div>
 
+      {/* ── Body (scroll) ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-7">
       {/* ── Stats row ── */}
       <div className="flex gap-3 mt-5">
         <StatCard label="Tổng" value={total} />
@@ -115,6 +117,7 @@ export function RefereeList({ referees, tournamentId }: Props) {
 
         {/* Invite CTA always visible */}
         <InviteCTACard onClick={() => setInviteOpen(true)} />
+      </div>
       </div>
 
       {/* ── Invite dialog ── */}

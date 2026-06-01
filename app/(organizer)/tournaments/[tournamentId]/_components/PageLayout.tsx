@@ -24,7 +24,7 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn('flex items-start justify-between px-8 pt-7 pb-5 gap-4', className)}>
+    <div className={cn('flex-shrink-0 flex items-start justify-between px-8 pt-7 pb-5 gap-4', className)}>
       <div>
         <h1 className="text-[22px] font-bold text-white">{title}</h1>
         {description && (
@@ -64,7 +64,7 @@ export function PageBody({
   previewWidthPct = 40,
 }: PageBodyProps) {
   if (!preview) {
-    return <div>{children}</div>
+    return <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
   }
 
   const panel = (
@@ -80,10 +80,12 @@ export function PageBody({
   )
 
   return (
-    <div className="flex items-start">
-      {previewSide === 'left' && panel}
-      <div className="flex-1 min-w-0">{children}</div>
-      {previewSide === 'right' && panel}
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex items-start">
+        {previewSide === 'left' && panel}
+        <div className="flex-1 min-w-0">{children}</div>
+        {previewSide === 'right' && panel}
+      </div>
     </div>
   )
 }

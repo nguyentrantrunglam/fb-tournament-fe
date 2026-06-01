@@ -1,11 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Download, UserPlus, Upload, Search, Filter, CreditCard, X } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { Download, UserPlus, Upload, Search, CreditCard, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader, PageBody } from '../../_components/PageLayout'
-import { CategoryFilterPanel } from './CategoryFilterPanel'
+import { InfiniteScrollSentinel } from '@/components/infinite-scroll-sentinel'
+import { CategoryFilterDropdown } from './CategoryFilterDropdown'
 import { RegistrationTable } from './RegistrationTable'
+
+// Số dòng nạp mỗi lần cuộn tới đáy (thực tế: fetch page tiếp theo từ Firestore cursor)
+const PAGE_SIZE = 20
 import type {
   RegistrationRow,
   RegistrationStatus,
@@ -57,7 +61,20 @@ export function RegistrationsClient({ categories, registrations, totalCount }: P
     })
   }, [registrations, tab, selectedCats, search])
 
-  const allChecked = rows.length > 0 && rows.every((r) => selectedRows.has(r.id))
+  // Infinite scroll: reset về trang đầu khi đổi filter (adjust-state-during-render)
+  const filterKey = `${tab}|${[...selectedCats].sort().join(',')}|${search.trim().toLowerCase()}`
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey)
+    setVisibleCount(PAGE_SIZE)
+  }
+
+  const visibleRows = useMemo(() => rows.slice(0, visibleCount), [rows, visibleCount])
+  const hasMore = visibleCount < rows.length
+  const loadMore = useCallback(() => setVisibleCount((v) => v + PAGE_SIZE), [])
+
+  const allChecked = visibleRows.length > 0 && visibleRows.every((r) => selectedRows.has(r.id))
 
   function toggleInSet(prev: Set<string>, id: string): Set<string> {
     const next = new Set(prev)
@@ -72,7 +89,7 @@ export function RegistrationsClient({ categories, registrations, totalCount }: P
     setSelectedRows((prev) => toggleInSet(prev, id))
   }
   function toggleAll() {
-    setSelectedRows(allChecked ? new Set() : new Set(rows.map((r) => r.id)))
+    setSelectedRows(allChecked ? new Set() : new Set(visibleRows.map((r) => r.id)))
   }
 
   const actions = (
@@ -87,62 +104,55 @@ export function RegistrationsClient({ categories, registrations, totalCount }: P
   )
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <PageHeader
         title="Đăng ký"
         description={`${totalCount} đăng ký · giải đã đóng cho VĐV mới. BTC có thể đăng ký hộ qua bulk import.`}
         actions={actions}
       />
 
-      <PageBody
-        previewSide="left"
-        previewWidthPct={22}
-        preview={
-          <CategoryFilterPanel
+      {/* Tabs + toolbar (cố định cùng header) */}
+      <div className="flex-shrink-0 px-8">
+        <div className="flex items-center gap-1 border-b border-zinc-800">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium border-b-2 transition-colors',
+                tab === t.key
+                  ? 'border-orange-500 text-white'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300',
+              )}
+            >
+              {t.label}
+              <span className="text-[11px] tabular-nums text-zinc-500">{countByStatus[t.key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-4 pb-1">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tên, CCCD, SĐT…"
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-8 pr-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+            />
+          </div>
+          <CategoryFilterDropdown
             categories={categories}
             selected={selectedCats}
             counts={countByCat}
-            totalCount={totalCount}
             onToggle={toggleCat}
             onClear={() => setSelectedCats(new Set())}
           />
-        }
-      >
-        <div className="px-8 py-6">
-          {/* Status tabs */}
-          <div className="flex items-center gap-1 border-b border-zinc-800">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium border-b-2 transition-colors',
-                  tab === t.key
-                    ? 'border-orange-500 text-white'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-300',
-                )}
-              >
-                {t.label}
-                <span className="text-[11px] tabular-nums text-zinc-500">{countByStatus[t.key] ?? 0}</span>
-              </button>
-            ))}
-          </div>
+          <FilterBtn icon={CreditCard} label="Thanh toán" />
+        </div>
+      </div>
 
-          {/* Toolbar */}
-          <div className="flex items-center gap-2 mt-4">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tên, CCCD, SĐT…"
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-8 pr-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-              />
-            </div>
-            <FilterBtn icon={Filter} label="Hạng mục" />
-            <FilterBtn icon={CreditCard} label="Thanh toán" />
-          </div>
-
+      <PageBody>
+        <div className="px-8 py-4">
           {/* Bulk action bar */}
           {selectedRows.size > 0 && (
             <div className="flex items-center gap-4 mt-4 px-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg">
@@ -168,7 +178,7 @@ export function RegistrationsClient({ categories, registrations, totalCount }: P
           {/* Table */}
           <div className="mt-4">
             <RegistrationTable
-              rows={rows}
+              rows={visibleRows}
               selected={selectedRows}
               allChecked={allChecked}
               onToggleRow={toggleRow}
@@ -176,21 +186,14 @@ export function RegistrationsClient({ categories, registrations, totalCount }: P
             />
           </div>
 
-          {/* Footer / pagination */}
-          <div className="flex items-center justify-between mt-4 text-[12px] text-zinc-500">
-            <span>Hiển thị {rows.length} trên {totalCount}</span>
-            <div className="flex items-center gap-2">
-              <button className="px-3 py-1.5 border border-zinc-700 rounded-md text-zinc-400 hover:text-white hover:border-zinc-500 transition-colors">
-                ← Trước
-              </button>
-              <button className="px-3 py-1.5 border border-zinc-700 rounded-md text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors">
-                Tiếp →
-              </button>
-            </div>
-          </div>
+          {/* Infinite scroll: cuộn tới đáy → nạp thêm */}
+          <InfiniteScrollSentinel hasMore={hasMore} onLoadMore={loadMore} />
+          <p className="text-center mt-2 text-[12px] text-zinc-600">
+            Hiển thị {visibleRows.length} trên {totalCount}
+          </p>
         </div>
       </PageBody>
-    </>
+    </div>
   )
 }
 

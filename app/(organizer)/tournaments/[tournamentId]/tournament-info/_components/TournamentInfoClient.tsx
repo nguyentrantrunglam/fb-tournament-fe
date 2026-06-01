@@ -35,6 +35,7 @@ function slugify(text: string) {
 function formatDateDisplay(iso: string) {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
+  void y;
   return `${d}.${m}`;
 }
 
@@ -173,7 +174,7 @@ export function TournamentInfoClient({
     }
   }, [nameValue, slugManual, setValue]);
 
-  async function onSubmit(data: TournamentInfoFormData) {
+  async function onSubmit() {
     setSaving(true);
     // TODO: gọi Cloud Function updateTournamentInfo(tournamentId, data)
     await new Promise((r) => setTimeout(r, 800));
@@ -207,42 +208,42 @@ export function TournamentInfoClient({
         {saving ? "Đang lưu..." : "Lưu thay đổi"}
       </button>
     </>
-  )
+  );
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <PageHeader
         title="Thông tin giải"
         description="Cấu hình cơ bản, chi tiết, nhà tài trợ, thanh toán. Mọi thay đổi đều có audit log."
         actions={actions}
       />
 
-      <PageBody preview={<PreviewCard data={formData} categories={categories} />}>
-        {/* Tabs nav */}
-        <div className="px-8 border-b border-zinc-800">
-          <div className="flex">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors",
-                  activeTab === tab
-                    ? "border-orange-500 text-white"
-                    : "border-transparent text-zinc-500 hover:text-zinc-300",
-                )}
-              >
-                {tab}
-                {tab === "Nhà tài trợ" && (
-                  <span className="ml-1.5 text-[11px] bg-zinc-700 text-zinc-400 px-1.5 py-0.5 rounded">
-                    {tournament.sponsors.length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+      {/* Tabs nav (cố định cùng header) */}
+      <div className="flex-shrink-0 px-8 border-b border-zinc-800">
+        <div className="flex">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors",
+                activeTab === tab
+                  ? "border-orange-500 text-white"
+                  : "border-transparent text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              {tab}
+              {tab === "Nhà tài trợ" && (
+                <span className="ml-1.5 text-[11px] bg-zinc-700 text-zinc-400 px-1.5 py-0.5 rounded">
+                  {tournament.sponsors.length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
+      </div>
 
+      <PageBody preview={<PreviewCard data={formData} categories={categories} />}>
         {/* Form content */}
         <form
           id="tournament-info-form"
@@ -327,6 +328,84 @@ export function TournamentInfoClient({
             </>
           )}
 
+                    {activeTab === "Cơ bản" && (
+            <>
+              <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-5 space-y-4">
+                <h2 className="text-[13px] font-semibold text-zinc-300">Định danh</h2>
+
+                <Field label="Tên giải" required error={errors.name?.message}>
+                  <input
+                    {...register("name")}
+                    placeholder="VD: Giải Cầu Lông Mở Rộng Sài Gòn 2026"
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Slug URL (tự sinh, có thể sửa)" error={errors.slug?.message}>
+                  <div className="flex items-center">
+                    <span className="flex-shrink-0 h-9 flex items-center px-3 bg-zinc-800 border border-r-0 border-zinc-700 rounded-l-md text-[12px] text-zinc-500 whitespace-nowrap">
+                      fbtournament.vn/giai/
+                    </span>
+                    <div className="relative flex-1">
+                      <input
+                        {...register("slug")}
+                        onFocus={() => setSlugManual(true)}
+                        placeholder="ten-giai-2026"
+                        className={cn(
+                          inputCls,
+                          "rounded-l-none pr-8",
+                          !errors.slug && slugValue && "border-emerald-600 focus:ring-emerald-500",
+                        )}
+                      />
+                      {!errors.slug && slugValue && (
+                        <BadgeCheck className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                      )}
+                    </div>
+                  </div>
+                </Field>
+
+                <Field label="Mô tả ngắn" error={errors.description?.message}>
+                  <textarea
+                    {...register("description")}
+                    rows={3}
+                    placeholder="Mô tả ngắn gọn về giải đấu..."
+                    className={cn(inputCls, "resize-y min-h-[80px]")}
+                  />
+                </Field>
+              </section>
+
+              <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-5 space-y-4">
+                <h2 className="text-[13px] font-semibold text-zinc-300">Thời gian & Địa điểm</h2>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Ngày bắt đầu" required error={errors.startDate?.message}>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+                      <input {...register("startDate")} type="date" className={cn(inputCls, "pl-8")} />
+                    </div>
+                  </Field>
+                  <Field label="Ngày kết thúc" required error={errors.endDate?.message}>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+                      <input {...register("endDate")} type="date" className={cn(inputCls, "pl-8")} />
+                    </div>
+                  </Field>
+                </div>
+
+                <Field label="Địa điểm" required error={errors.location?.message}>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+                    <input
+                      {...register("location")}
+                      placeholder="VD: Nhà thi đấu Phú Thọ, 219 Lý Thường Kiệt, Q.Phú Nhuận, TP.HCM"
+                      className={cn(inputCls, "pl-8")}
+                    />
+                  </div>
+                </Field>
+              </section>
+            </>
+          )}
+
           {activeTab !== "Cơ bản" && (
             <div className="flex items-center justify-center h-40 rounded-lg border border-dashed border-zinc-800 text-zinc-600 text-sm">
               Tab &quot;{activeTab}&quot; — sẽ implement ở phase tương ứng
@@ -334,6 +413,6 @@ export function TournamentInfoClient({
           )}
         </form>
       </PageBody>
-    </>
+    </div>
   );
 }

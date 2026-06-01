@@ -76,9 +76,9 @@ export function CourtBoard({ courts: initialCourts, referees, tournamentId }: Pr
       : `${total} sân · gán trọng tài cố định, sau đó kéo match vào sân ở Vận hành LIVE.`
 
   return (
-    <div className="px-8 py-7">
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-6 mb-5">
+    <div className="flex flex-col h-full">
+      {/* ── Header (cố định) ── */}
+      <div className="flex-shrink-0 flex items-start justify-between gap-6 px-8 pt-7 pb-4">
         <div>
           <h1 className="text-[22px] font-bold text-white leading-tight">Sân thi đấu</h1>
           <p className="text-[13px] text-zinc-400 mt-1">{description}</p>
@@ -92,7 +92,8 @@ export function CourtBoard({ courts: initialCourts, referees, tournamentId }: Pr
         </button>
       </div>
 
-      {/* ── Court grid / empty state ── */}
+      {/* ── Court grid / empty state (scroll) ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-7">
       {total === 0 ? (
         <button
           onClick={() => setAddOpen(true)}
@@ -125,6 +126,7 @@ export function CourtBoard({ courts: initialCourts, referees, tournamentId }: Pr
           ))}
         </div>
       )}
+      </div>
 
       {/* ── Add court dialog ── */}
       <AddCourtDialog

@@ -91,9 +91,9 @@ export function CategoryList({ categories, tournamentId, canCreate }: Props) {
   }
 
   return (
-    <div className="px-8 py-7">
-      {/* ── Header row ── */}
-      <div className="flex items-start justify-between gap-6 mb-1">
+    <div className="flex flex-col h-full">
+      {/* ── Header row (cố định) ── */}
+      <div className="flex-shrink-0 flex items-start justify-between gap-6 px-8 pt-7 pb-4">
         <div className="min-w-0">
           <h1 className="text-[22px] font-bold text-white leading-tight">
             Nội dung · Hạng mục
@@ -162,8 +162,8 @@ export function CategoryList({ categories, tournamentId, canCreate }: Props) {
         </div>
       </div>
 
-      {/* ── Category list ── */}
-      <div className="mt-5">
+      {/* ── Category list (scroll) ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-7 pt-5">
         {filtered.length === 0 ? (
           <EmptyState
             isFiltered={isFiltered}
