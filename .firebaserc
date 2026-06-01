@@ -1,0 +1,1 @@
+{ "projects": { "dev": "tournament-fe-dev", "prod": "tournament-fe-prod" } }
