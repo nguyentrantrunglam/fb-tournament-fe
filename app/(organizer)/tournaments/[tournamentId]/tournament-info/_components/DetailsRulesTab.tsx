@@ -1,8 +1,10 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Bold, Italic, Heading, List, Eye, Pencil } from 'lucide-react'
+import { Bold, Italic, Heading, List, Eye, Pencil, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { updateTournament } from '@/lib/tournaments/api'
+import { authErrorMessage } from '@/lib/auth/auth-error'
 
 // Inline markdown tối giản: **đậm** *nghiêng*
 function renderInline(text: string) {
@@ -42,10 +44,30 @@ const PLACEHOLDER = `# Thể lệ giải đấu
 ## Luật thi đấu
 Áp dụng luật **BWF** với một số điều chỉnh...`
 
-export function DetailsRulesTab({ initialRules }: { initialRules: string | null }) {
+export function DetailsRulesTab({
+  tournamentId,
+  initialRules,
+}: {
+  tournamentId: string
+  initialRules: string | null
+}) {
   const [text, setText] = useState(initialRules ?? '')
   const [preview, setPreview] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const ref = useRef<HTMLTextAreaElement>(null)
+
+  async function save() {
+    setSaving(true)
+    setErr(null)
+    try {
+      await updateTournament(tournamentId, { rulesText: text || null })
+    } catch (e) {
+      setErr(authErrorMessage(e))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function wrap(before: string, after = before) {
     const el = ref.current
@@ -85,14 +107,29 @@ export function DetailsRulesTab({ initialRules }: { initialRules: string | null 
             <button onClick={() => prefixLine('## ')} className={toolBtn} title="Tiêu đề"><Heading className="w-4 h-4" /></button>
             <button onClick={() => prefixLine('- ')} className={toolBtn} title="Danh sách"><List className="w-4 h-4" /></button>
           </div>
-          <button
-            onClick={() => setPreview((v) => !v)}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-md transition-colors"
-          >
-            {preview ? <Pencil className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {preview ? 'Soạn thảo' : 'Xem trước'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPreview((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-md transition-colors"
+            >
+              {preview ? <Pencil className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {preview ? 'Soạn thảo' : 'Xem trước'}
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1 text-[12px] font-medium rounded-md transition-colors',
+                saving ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-400 text-white',
+              )}
+            >
+              <Save className="w-3.5 h-3.5" />
+              {saving ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </div>
         </div>
+
+        {err && <div className="text-[12px] text-red-300 bg-red-950/40 border-b border-red-900/50 px-3 py-2">{err}</div>}
 
         {/* Body */}
         {preview ? (

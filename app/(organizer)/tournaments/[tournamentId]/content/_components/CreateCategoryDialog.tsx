@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn } from '@/lib/utils'
 import { createCategorySchema, type CreateCategoryInput } from '@/lib/validators/category'
+import { createCategory } from '@/lib/tournaments/api'
+import { authErrorMessage } from '@/lib/auth/auth-error'
 import {
   Dialog,
   DialogContent,
@@ -69,9 +71,11 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   tournamentId: string
+  onCreated?: (() => void) | undefined
 }
 
-export function CreateCategoryDialog({ open, onOpenChange }: Props) {
+export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreated }: Props) {
+  const [err, setErr] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
@@ -111,9 +115,14 @@ export function CreateCategoryDialog({ open, onOpenChange }: Props) {
   }
 
   async function onSubmit(data: CreateCategoryInput) {
-    // TODO: gọi CF create-category khi Phase 3 xong
-    console.log('create category payload', data)
-    handleClose()
+    setErr(null)
+    try {
+      await createCategory(tournamentId, data)
+      onCreated?.()
+      handleClose()
+    } catch (e) {
+      setErr(authErrorMessage(e))
+    }
   }
 
   return (
@@ -122,6 +131,10 @@ export function CreateCategoryDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="text-white text-base">Tạo hạng mục mới</DialogTitle>
         </DialogHeader>
+
+        {err && (
+          <div className="text-[12px] text-red-300 bg-red-950/50 border border-red-900/60 rounded-md px-3 py-2">{err}</div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
           {/* Code + Name */}

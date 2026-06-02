@@ -41,7 +41,7 @@ export type TournamentCategory = {
   name: string
   playerCount: 1 | 2
   genderRequirement: 'men_only' | 'women_only' | 'mixed_pair' | 'unrestricted'
-  format: 'single_elim'
+  format: 'single_elim' | 'round_robin' | 'group_ko'
   bestOf: 1 | 3 | 5
   fee: number
   maxTeams: number

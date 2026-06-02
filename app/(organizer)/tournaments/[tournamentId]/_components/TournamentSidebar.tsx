@@ -8,7 +8,8 @@ import {
   MapPin, CreditCard, Users, ListOrdered,
   GitFork, CalendarDays, Radio, ChevronDown,
 } from 'lucide-react'
-import type { Tournament, TournamentStatus } from '@/lib/types/tournament'
+import type { TournamentStatus } from '@/lib/types/tournament'
+import { useTournament } from './tournament-context'
 
 const STATUS_CONFIG: Record<TournamentStatus, { label: string; dot: string }> = {
   draft:     { label: 'Bản nháp',      dot: 'bg-zinc-400' },
@@ -30,14 +31,9 @@ type NavSection = { title: string; items: NavItem[] }
 // Badge counts — thay bằng data thật từ Firestore khi có
 const MOCK_COUNTS = { content: 5, referees: 4, courts: 3, registrations: 72, teams: 65 }
 
-export function TournamentSidebar({
-  tournamentId,
-  tournament,
-}: {
-  tournamentId: string
-  tournament: Tournament
-}) {
+export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
   const pathname = usePathname()
+  const tournament = useTournament()
   const base = `/tournaments/${tournamentId}`
 
   const sections: NavSection[] = [

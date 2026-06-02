@@ -93,7 +93,7 @@ Hệ thống web cho phép bất kỳ ai cũng có thể:
   - `women_only` — tất cả người chơi phải là nữ (đơn nữ / đôi nữ).
   - `mixed_pair` — **chỉ áp dụng `playerCount=2`** — bắt buộc 1 nam + 1 nữ.
   - `unrestricted` — không phân biệt giới tính (giải nhỏ, phong trào). UI không filter, không validate.
-- **Format**: MVP single elimination (round-robin + group+playoff ở P4).
+- **Format** (`format`): 3 thể thức — `single_elim` (loại trực tiếp, crossover seeding), `round_robin` (vòng tròn 1 lượt, xếp hạng theo điểm + hiệu số game), `group_ko` (chia bảng → top N mỗi bảng vào vòng KO). Mỗi hạng mục chọn 1.
 - **Best of**: 1 / 3 / 5 game.
 
 **UI filter khi đăng ký** (cho VĐV chọn bản thân + partner):
@@ -170,9 +170,11 @@ Hệ thống web cho phép bất kỳ ai cũng có thể:
 - Hệ thống tính sơ bộ lịch dự kiến cho từng match dựa trên số sân của giải:
   - `matchScheduledAt = scheduleStartAt + (matchIndex / courtCount) * estimatedMinPerMatch`
   - Đây là **soft estimate**, chỉ để UI gợi ý + cảnh báo trùng giờ VĐV.
-- **KHÔNG bắt buộc gán sân (`courtId`) ở giai đoạn này** — gán ở bước Vận hành.
+  - `matchIndex` = **thứ tự thi đấu** (`order`); BTC kéo-thả đổi thứ tự ở trang Lịch & trận → tính lại `scheduledAt`. Trận `completed`/`in_progress` khoá, không đổi.
+- **KHÔNG gán sân (`courtId`) ở trang Lịch** — chỉ quản lý thứ tự; gán match→sân thực hiện ở **Vận hành LIVE**.
 
-### Bracket & Match (Single Elim)
+### Bracket & Match
+- Sơ đồ vẽ bằng **React Flow** (canvas pan/zoom, đường nối các vòng). Hỗ trợ 3 thể thức: `single_elim` (cột R1→F), `round_robin` (BXH + danh sách trận), `group_ko` (bảng + KO playoff). Hiển thị đầy đủ tên VĐV (đôi: 2 tên / side).
 - BTC nhập seed thủ công (số seed cho mỗi registration đã approved).
 - BTC bốc thăm sinh bracket; có thể bốc lại trước khi giải bắt đầu.
 - Sau khi bốc, BTC vẫn có thể swap chỗ 2 VĐV (re-arrange) → tạo bracket version mới, lưu version cũ.
@@ -193,6 +195,7 @@ Hệ thống web cho phép bất kỳ ai cũng có thể:
 - BTC / referee chủ động bấm "Bắt đầu trận" → status `in_progress`.
 - Referee nhập điểm các game (best-of-N). **Điểm tự do, không validate range. Bên có điểm cao hơn = thắng game.**
 - Referee bấm "Kết thúc trận" → tính winner theo số game thắng → đẩy người thắng lên match tiếp theo + **tự động gỡ match khỏi sân** (court chuyển sang `available`).
+- **BTC nhập tỉ số thủ công** (override): từ trang Lịch & trận, mở dialog nhập điểm từng game cho trận chưa xong (pending/in_progress) → tính winner → completed. Dùng khi không qua luồng trọng tài-trên-sân.
 - Cảnh báo (không block) khi 2 trận của cùng 1 VĐV trùng giờ dự kiến.
 
 ### Operations Console (Bảng điều hành)

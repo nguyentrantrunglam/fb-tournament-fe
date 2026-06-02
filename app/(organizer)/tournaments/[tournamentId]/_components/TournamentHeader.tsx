@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Tournament, TournamentStatus } from '@/lib/types/tournament'
+import type { TournamentStatus } from '@/lib/types/tournament'
+import { useTournament } from './tournament-context'
 
 // Các bước lifecycle — thứ tự tương ứng với status field
 const STEPS: Array<{ label: string; reachedAt: TournamentStatus[] }> = [
@@ -39,14 +40,9 @@ const PAGE_LABELS: Record<string, string> = {
   live:                 'Vận hành LIVE',
 }
 
-export function TournamentHeader({
-  tournamentId,
-  tournament,
-}: {
-  tournamentId: string
-  tournament: Tournament
-}) {
+export function TournamentHeader({ tournamentId }: { tournamentId: string }) {
   const pathname = usePathname()
+  const tournament = useTournament()
   const lastSegment = pathname.split('/').filter(Boolean).at(-1) ?? ''
   const pageLabel = PAGE_LABELS[lastSegment] ?? tournament.name
 

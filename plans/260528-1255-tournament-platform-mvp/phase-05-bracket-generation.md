@@ -15,6 +15,8 @@ Implement thuật toán bracket single-elimination với crossover seeding + bye
 
 **Tham chiếu spec đầy đủ:** [docs/bracket-algorithm-spec.md](../../../docs/bracket-algorithm-spec.md). Phase này là implementation của spec đó.
 
+**Cập nhật scope (3 thể thức):** `Category.format` = `single_elim | round_robin | group_ko`. Phase này implement đầy đủ `single_elim`; sinh match `round_robin` (vòng tròn 1 lượt + xếp hạng) và `group_ko` (chia bảng → KO) theo §11 spec — domain pure, có thể tách sub-task. UI sơ đồ (React Flow, đã mock) render theo `format`.
+
 ## Requirements
 
 **Functional:**

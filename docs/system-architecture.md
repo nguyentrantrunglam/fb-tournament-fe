@@ -134,9 +134,9 @@ erDiagram
         string name "vd Đôi nam U19"
         int playerCount "1|2 (đơn/đôi)"
         enum genderRequirement "men_only|women_only|mixed_pair|unrestricted"
-        enum format "single_elim"
+        enum format "single_elim|round_robin|group_ko"
         int bestOf "1|3|5"
-        json formatConfig "vd { crossover: true }"
+        json formatConfig "vd {crossover:true} | RR:{} | group:{groupCount, qualifyPerGroup}"
         timestamp registrationDeadline
         int fee "VND, 0=free"
         int maxTeams "hard cap, đếm approved+pending"
@@ -186,9 +186,10 @@ erDiagram
         string sideBId FK
         string winnerSideId FK "nullable"
         string nextMatchId FK "nullable, match thắng đi tiếp"
-        string courtId FK "nullable, gán lúc operation"
+        string courtId FK "nullable, gán ở Vận hành LIVE (không gán ở trang Lịch)"
         string refereeUid FK "nullable, snapshot từ court.currentRefereeUid khi assign court"
-        timestamp scheduledAt "dự kiến từ schedule config"
+        int order "thứ tự thi đấu, kéo đổi ở trang Lịch → tính lại scheduledAt"
+        timestamp scheduledAt "dự kiến = startAt + (order/courtCount)*estimatedMinPerMatch"
         timestamp startedAt
         timestamp endedAt
         enum status "pending|in_progress|completed|walkover"

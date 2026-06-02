@@ -10,7 +10,11 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "emulator": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data"
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "seed:users": "node scripts/seed-users.mjs",
+    "functions:build": "npm --prefix functions run build",
+    "functions:watch": "npm --prefix functions run build:watch",
+    "emulator": "npm --prefix functions run build && firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

@@ -1,6 +1,61 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} { allow read, write: if false; }
+
+    function tour(tid) {
+      return get(/databases/$(database)/documents/tournaments/$(tid)).data;
+    }
+    function isTourOwner(tid) {
+      return request.auth != null && tour(tid).ownerUid == request.auth.uid;
+    }
+    function isTourReadable(tid) {
+      return tour(tid).isPublic == true || isTourOwner(tid);
+    }
+
+    // Hồ sơ public (displayName, gender, dob, avatarUrl, globalRole). Ghi: CF only.
+    match /users/{uid} {
+      allow read: if true;
+      allow write: if false;
+
+      // PII (cccd, phone, email): chỉ chính chủ đọc. Ghi: CF only.
+      match /private/{doc} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+
+    // Index CCCD: KHÔNG client read/write (chống dò CCCD). CF only.
+    match /cccdIndex/{cccd} {
+      allow read, write: if false;
+    }
+
+    // Giải: đọc nếu public hoặc là owner; ghi: CF only.
+    match /tournaments/{tid} {
+      allow read: if resource.data.isPublic == true
+                  || (request.auth != null && request.auth.uid == resource.data.ownerUid);
+      allow write: if false;
+
+      match /roles/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // Hạng mục: đọc theo quyền đọc giải; ghi: CF only.
+      match /categories/{cid} {
+        allow read: if isTourReadable(tid);
+        allow write: if false;
+      }
+
+      // Đăng ký: nhạy cảm (PII) → chỉ owner đọc; ghi: CF only.
+      match /registrations/{rid} {
+        allow read: if isTourOwner(tid);
+        allow write: if false;
+      }
+    }
+
+    // Mặc định: từ chối. Mở dần theo từng phase.
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

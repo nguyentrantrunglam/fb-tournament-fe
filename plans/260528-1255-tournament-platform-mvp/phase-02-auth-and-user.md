@@ -49,12 +49,12 @@ cccdIndex/{cccd}                      # NO client read
 ```
 app/
 ├── (auth)/
-│   ├── dang-nhap/page.tsx
-│   ├── dang-ky/page.tsx              # 2-step form
-│   ├── quen-mat-khau/page.tsx
+│   ├── login/page.tsx                # route tiếng Anh (đồng nhất toàn app)
+│   ├── register/page.tsx             # 2-step form
+│   ├── forgot-password/page.tsx
 │   └── layout.tsx
 ├── (app)/
-│   ├── ho-so/page.tsx                # edit profile
+│   ├── profile/page.tsx              # edit profile
 │   └── layout.tsx                    # auth guard
 └── api/auth/session/route.ts         # set session cookie sau login
 
@@ -107,17 +107,17 @@ firestore.rules                       # users + cccdIndex rules
      - Exists → throw `CCCD_ALREADY_REGISTERED`. Client xoá auth user (rollback) → user thấy modal "đã đăng ký, đăng nhập?".
      - Not exists → tạo 3 doc: `users/{uid}`, `users/{uid}/private/identity`, `cccdIndex/{cccd}`.
    - Audit log `auth/signup` (giữ trong collection global `auditLogs/{eventId}` thay vì tournament audit).
-3. **Client signup flow** (`app/(auth)/dang-ky/page.tsx`):
-   - Form 1 màn duy nhất (KISS), submit:
+3. **Client signup flow** (`app/(auth)/register/page.tsx`):
+   - **Form 2 bước** (B1 tài khoản: email/password/confirm → B2 hồ sơ: họ tên, CCCD 12 số, giới tính, ngày sinh, phone optional). Submit B2:
      - `createUserWithEmailAndPassword`
      - Wait for ID token
      - Call `complete-profile` callable
      - On error CCCD: delete user.delete() + show modal
-     - On success: redirect `/trang-chu`
+     - On success: redirect `/`
 4. **Google OAuth**:
    - `signInWithPopup(GoogleProvider)` → check `users/{uid}` exists?
      - Yes → login complete.
-     - No → redirect `/dang-ky/hoan-tat` (form bổ sung CCCD + dob + gender) → call complete-profile.
+     - No → redirect bước hồ sơ (form bổ sung CCCD + dob + gender) → call complete-profile.
 5. **Session cookie**: dùng Next.js Route Handler `api/auth/session` set HTTP-only cookie chứa ID token. Middleware verify cho RSC.
 6. **Profile edit page**: CF `update-profile` cho phép sửa displayName, phone, avatarUrl. KHÔNG cho sửa cccd, gender, dob (PII lock).
 7. **Admin panel** `app/(app)/admin/users/page.tsx`:
@@ -126,7 +126,7 @@ firestore.rules                       # users + cccdIndex rules
    - Click user → modal grant/revoke `admin` global role.
    - CF `grant-global-role` callable.
    - Bootstrap admin đầu tiên: tạo thủ công qua Firebase Console → set `globalRole: 'admin'` cho 1 user.
-8. **Forgot password**: dùng Firebase Auth built-in `sendPasswordResetEmail`. Trang `/quen-mat-khau` UI gửi email.
+8. **Forgot password**: dùng Firebase Auth built-in `sendPasswordResetEmail`. Trang `/forgot-password` UI gửi email.
 9. **Firestore rules** (lần 1, narrow scope):
    ```
    match /users/{userId} {
@@ -158,7 +158,7 @@ firestore.rules                       # users + cccdIndex rules
 - [ ] Admin grant/revoke `admin` role hoạt động + audit log.
 - [ ] 4 rules test trên emulator pass.
 - [ ] Forgot password email gửi được (emulator log).
-- [ ] Bundle size sau phase này: `< 250KB JS gzipped` route `/dang-ky`.
+- [ ] Bundle size sau phase này: `< 250KB JS gzipped` route `/register`.
 
 ## Risk Assessment
 

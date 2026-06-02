@@ -15,6 +15,10 @@ Implement model 2 cấp gán: (1) trọng tài vào court (giữ cố định), 
 
 **Tham chiếu spec đầy đủ:** [docs/system-architecture.md](../../../docs/system-architecture.md) §8.4 (Operations Console) + §8.9 (Schedule config).
 
+**Cập nhật từ mockup (UI đã dựng):**
+- **Trang Lịch & trận** = quản lý **thứ tự thi đấu** (`match.order`, kéo-thả đổi) → tính lại `scheduledAt`. **KHÔNG gán sân ở đây** — gán match→sân chỉ ở Vận hành LIVE. Cần CF `reorderMatches(categoryId, orderedIds[])`.
+- **Nhập tỉ số thủ công** (BTC override): từ trang Lịch, dialog nhập điểm từng game cho trận pending/in_progress → reuse `recordGameScore` + `endMatch`. Trận completed/in_progress khoá kéo đổi thứ tự.
+
 ## Requirements
 
 **Functional:**

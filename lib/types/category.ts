@@ -1,6 +1,9 @@
 export type CategoryRegistrationStatus = 'not_open' | 'open' | 'closed'
 export type GenderRequirement = 'men_only' | 'women_only' | 'mixed_pair' | 'unrestricted'
 
+// 3 thể thức (đồng bộ với lib/types/bracket.ts BracketFormat)
+export type CategoryFormat = 'single_elim' | 'round_robin' | 'group_ko'
+
 // Slim view cho màn Lệ phí & QR — set lệ phí từng nội dung
 export type CategoryFeeItem = {
   id: string
@@ -19,7 +22,7 @@ export type CategoryWithStats = {
   name: string
   playerCount: 1 | 2
   genderRequirement: GenderRequirement
-  format: 'single_elim'
+  format: CategoryFormat
   bestOf: 1 | 3 | 5
   fee: number               // VND, 0 = free
   maxTeams: number

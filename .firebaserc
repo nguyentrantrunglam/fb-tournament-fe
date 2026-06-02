@@ -1,1 +1,6 @@
-{ "projects": { "dev": "tournament-fe-dev", "prod": "tournament-fe-prod" } }
+{
+  "projects": {
+    "default": "fb-tournament-be",
+    "dev": "fb-tournament-be"
+  }
+}

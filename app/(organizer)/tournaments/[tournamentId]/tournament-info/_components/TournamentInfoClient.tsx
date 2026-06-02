@@ -9,8 +9,11 @@ import {
   tournamentInfoSchema,
   type TournamentInfoFormData,
 } from "@/lib/validators/tournament-info";
-import type { Tournament } from "@/lib/types/tournament";
 import { PageHeader, PageBody } from "../../_components/PageLayout";
+import { useTournament } from "../../_components/tournament-context";
+import { updateTournament } from "@/lib/tournaments/api";
+import { authErrorMessage } from "@/lib/auth/auth-error";
+import { TournamentHeroCard } from "@/components/tournament-hero-card";
 import { DetailsRulesTab } from "./DetailsRulesTab";
 import { SponsorsTab } from "./SponsorsTab";
 import { MediaTab } from "./MediaTab";
@@ -35,14 +38,8 @@ function slugify(text: string) {
     .trim();
 }
 
-function formatDateDisplay(iso: string) {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  void y;
-  return `${d}.${m}`;
-}
 
-// ——— Preview Card ———
+// ——— Preview Card (dùng chung TournamentHeroCard) ———
 function PreviewCard({
   data,
   categories,
@@ -50,53 +47,45 @@ function PreviewCard({
   data: TournamentInfoFormData;
   categories: string[];
 }) {
+  // Banner/logo/status/sponsors lấy từ giải thật (live qua context); name/địa điểm/ngày từ form đang sửa.
+  const t = useTournament();
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">
         Preview · Thẻ giải
       </p>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-        <div className="h-20 bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-start p-2.5">
-          <span className="flex items-center gap-1 text-[11px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            LIVE
-          </span>
-        </div>
-
-        <div className="p-3.5">
-          <p className="text-[15px] font-bold text-white leading-snug line-clamp-2">
-            {data.name || "Tên giải"}
-          </p>
-          <p className="text-[11px] text-zinc-400 mt-1.5">
-            {data.location
-              ? (data.location.split(",").at(-2)?.trim() ?? data.location)
-              : "Địa điểm"}
-            {data.startDate && data.endDate
-              ? ` · ${formatDateDisplay(data.startDate)} — ${formatDateDisplay(data.endDate)}`
-              : ""}
-          </p>
-          <div className="flex flex-wrap gap-1 mt-2.5">
-            {categories.length > 0 ? (
-              categories.slice(0, 3).map((c) => (
-                <span
-                  key={c}
-                  className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded"
-                >
-                  {c}
-                </span>
-              ))
-            ) : (
-              <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-0.5 rounded">
-                — hạng mục —
+      <TournamentHeroCard
+        name={data.name || "Tên giải"}
+        location={data.location}
+        startDate={data.startDate}
+        endDate={data.endDate}
+        status={t.status}
+        bannerUrl={t.bannerUrl}
+        logoUrl={t.logoUrl}
+      >
+        {data.description && (
+          <p className="text-[11px] text-zinc-500 line-clamp-2">{data.description}</p>
+        )}
+        <div className="flex flex-wrap gap-1 mt-2">
+          {categories.length > 0 ? (
+            categories.slice(0, 4).map((c) => (
+              <span key={c} className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded">
+                {c}
               </span>
-            )}
-          </div>
+            ))
+          ) : (
+            <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-0.5 rounded">— hạng mục —</span>
+          )}
         </div>
-      </div>
+        {t.sponsors.length > 0 && (
+          <p className="text-[10px] text-zinc-600 mt-2">{t.sponsors.length} nhà tài trợ</p>
+        )}
+      </TournamentHeroCard>
 
       <p className="text-[11px] text-zinc-600 italic leading-relaxed">
-        Cập nhật khi bạn lưu. Có thể khác với public sau cache CDN.
+        Banner/logo/nhà tài trợ cập nhật ngay khi lưu. Tên & thời gian cập nhật khi bạn lưu tab Cơ bản.
       </p>
     </div>
   );
@@ -134,15 +123,11 @@ const inputCls = cn(
 );
 
 // ——— Main component ———
-export function TournamentInfoClient({
-  tournament,
-  categories,
-}: {
-  tournament: Tournament;
-  categories: string[];
-}) {
+export function TournamentInfoClient({ categories }: { categories: string[] }) {
+  const tournament = useTournament();
   const [activeTab, setActiveTab] = useState<Tab>("Cơ bản");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [slugManual, setSlugManual] = useState(false);
 
   const {
@@ -175,12 +160,23 @@ export function TournamentInfoClient({
     }
   }, [nameValue, slugManual, setValue]);
 
-  async function onSubmit() {
+  async function onSubmit(data: TournamentInfoFormData) {
     setSaving(true);
-    // TODO: gọi Cloud Function updateTournamentInfo(tournamentId, data)
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
-    // TODO: toast success + trigger audit log
+    setSaveError(null);
+    try {
+      await updateTournament(tournament.id, {
+        name: data.name,
+        slug: data.slug,
+        description: data.description,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        location: data.location,
+      });
+    } catch (e) {
+      setSaveError(authErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
   }
 
   const actions = (
@@ -251,6 +247,11 @@ export function TournamentInfoClient({
             onSubmit={handleSubmit(onSubmit)}
             className="px-8 py-6 space-y-5"
           >
+            {saveError && (
+              <div className="text-[13px] text-red-300 bg-red-950/50 border border-red-900/60 rounded-md px-3 py-2">
+                {saveError}
+              </div>
+            )}
             <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-5 space-y-4">
               <h2 className="text-[13px] font-semibold text-zinc-300">Định danh</h2>
 
@@ -327,9 +328,15 @@ export function TournamentInfoClient({
           </form>
         )}
 
-        {activeTab === "Chi tiết & Thể lệ" && <DetailsRulesTab initialRules={tournament.rulesText} />}
-        {activeTab === "Nhà tài trợ" && <SponsorsTab />}
-        {activeTab === "Banner & Hình ảnh" && <MediaTab />}
+        {activeTab === "Chi tiết & Thể lệ" && (
+          <DetailsRulesTab tournamentId={tournament.id} initialRules={tournament.rulesText} />
+        )}
+        {activeTab === "Nhà tài trợ" && (
+          <SponsorsTab tournamentId={tournament.id} initialSponsors={tournament.sponsors} />
+        )}
+        {activeTab === "Banner & Hình ảnh" && (
+          <MediaTab tournamentId={tournament.id} initialBanner={tournament.bannerUrl} initialLogo={tournament.logoUrl} />
+        )}
       </PageBody>
     </div>
   );

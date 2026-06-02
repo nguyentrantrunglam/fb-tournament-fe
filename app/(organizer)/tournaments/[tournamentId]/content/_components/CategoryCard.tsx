@@ -2,7 +2,13 @@
 
 import { User, Users, GitFork, CalendarDays, DollarSign, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { CategoryWithStats, GenderRequirement } from '@/lib/types/category'
+import type { CategoryWithStats, GenderRequirement, CategoryFormat } from '@/lib/types/category'
+
+const FORMAT_LABEL: Record<CategoryFormat, string> = {
+  single_elim: 'Loại trực tiếp',
+  round_robin: 'Vòng tròn',
+  group_ko: 'Bảng + KO',
+}
 
 // ─── Avatar color per gender ──────────────────────────────────────────────────
 
@@ -146,7 +152,7 @@ export function CategoryCard({ category: cat, onEdit, onLifecycleAction }: Props
         <MetaChip icon={cat.playerCount === 1 ? User : Users}>
           {cat.playerCount} người · {GENDER_LABEL[cat.genderRequirement]}
         </MetaChip>
-        <MetaChip icon={GitFork}>Single elim · Best of {cat.bestOf}</MetaChip>
+        <MetaChip icon={GitFork}>{FORMAT_LABEL[cat.format]} · Best of {cat.bestOf}</MetaChip>
         {cat.fee > 0 && <MetaChip icon={DollarSign}>{formatFee(cat.fee, cat.playerCount)}</MetaChip>}
         <MetaChip icon={CalendarDays}>{formatDeadline(cat.registrationDeadline)}</MetaChip>
         {cat.byeCount > 0 && (

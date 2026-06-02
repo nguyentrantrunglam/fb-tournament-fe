@@ -58,9 +58,10 @@ type Props = {
   categories: CategoryWithStats[]
   tournamentId: string
   canCreate: boolean
+  onChanged?: () => void
 }
 
-export function CategoryList({ categories, tournamentId, canCreate }: Props) {
+export function CategoryList({ categories, tournamentId, canCreate, onChanged }: Props) {
   const [search, setSearch]           = useState('')
   const [statusFilter, setStatusFilter] = useState<FilterValue>('all')
   const [createOpen, setCreateOpen]   = useState(false)
@@ -188,6 +189,7 @@ export function CategoryList({ categories, tournamentId, canCreate }: Props) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         tournamentId={tournamentId}
+        onCreated={onChanged}
       />
     </div>
   )

@@ -1,8 +1,10 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ImagePlus, Plus, X, Link2 } from 'lucide-react'
+import { ImagePlus, Plus, X, Link2, Save, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { updateTournament, uploadTournamentImage } from '@/lib/tournaments/api'
+import { authErrorMessage } from '@/lib/auth/auth-error'
 import type { TournamentSponsor, SponsorTier } from '@/lib/types/tournament'
 
 type SponsorItem = TournamentSponsor
@@ -22,23 +24,28 @@ const inputCls = cn(
 
 function SponsorCard({
   s,
+  uploading,
   onChange,
+  onUploadLogo,
   onRemove,
 }: {
   s: SponsorItem
+  uploading: boolean
   onChange: (patch: Partial<SponsorItem>) => void
+  onUploadLogo: (file: File) => void
   onRemove: () => void
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex gap-3">
-      {/* Logo */}
       <button
         onClick={() => fileRef.current?.click()}
         className="w-20 h-20 flex-shrink-0 rounded-md border border-dashed border-zinc-700 hover:border-zinc-500 flex items-center justify-center overflow-hidden bg-zinc-950/40 transition-colors"
       >
-        {s.logoUrl ? (
+        {uploading ? (
+          <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
+        ) : s.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={s.logoUrl} alt={s.name} className="w-full h-full object-contain p-1.5" />
         ) : (
@@ -51,35 +58,18 @@ function SponsorCard({
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0]
-            if (f) onChange({ logoUrl: URL.createObjectURL(f) })
+            if (f) onUploadLogo(f)
           }}
         />
       </button>
 
-      {/* Fields */}
       <div className="flex-1 min-w-0 space-y-1.5">
-        <input
-          value={s.name}
-          onChange={(e) => onChange({ name: e.target.value })}
-          placeholder="Tên nhà tài trợ"
-          className={inputCls}
-        />
+        <input value={s.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="Tên nhà tài trợ" className={inputCls} />
         <div className="relative">
           <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
-          <input
-            value={s.link}
-            onChange={(e) => onChange({ link: e.target.value })}
-            placeholder="https://..."
-            className={cn(inputCls, 'pl-8')}
-          />
+          <input value={s.link} onChange={(e) => onChange({ link: e.target.value })} placeholder="https://..." className={cn(inputCls, 'pl-8')} />
         </div>
-        <textarea
-          value={s.description}
-          onChange={(e) => onChange({ description: e.target.value })}
-          placeholder="Mô tả ngắn (tuỳ chọn)"
-          rows={2}
-          className={cn(inputCls, 'resize-none')}
-        />
+        <textarea value={s.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Mô tả ngắn (tuỳ chọn)" rows={2} className={cn(inputCls, 'resize-none')} />
       </div>
 
       <button onClick={onRemove} className="p-1 text-zinc-600 hover:text-red-400 transition-colors self-start">
@@ -89,17 +79,14 @@ function SponsorCard({
   )
 }
 
-export function SponsorsTab() {
-  const [sponsors, setSponsors] = useState<SponsorItem[]>([
-    { id: 's1', tier: 'diamond', name: 'VNPay', logoUrl: null, link: 'https://vnpay.vn', description: 'Nhà tài trợ kim cương' },
-    { id: 's2', tier: 'gold', name: 'Yonex', logoUrl: null, link: '', description: '' },
-  ])
-
-  const seqRef = useRef(0)
+export function SponsorsTab({ tournamentId, initialSponsors }: { tournamentId: string; initialSponsors: SponsorItem[] }) {
+  const [sponsors, setSponsors] = useState<SponsorItem[]>(initialSponsors)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
 
   function addSponsor(tier: SponsorTier) {
-    seqRef.current += 1
-    setSponsors((prev) => [...prev, { id: `s-new-${seqRef.current}-${tier}`, tier, name: '', logoUrl: null, link: '', description: '' }])
+    setSponsors((prev) => [...prev, { id: crypto.randomUUID(), tier, name: '', logoUrl: null, link: '', description: '' }])
   }
   function updateSponsor(id: string, patch: Partial<SponsorItem>) {
     setSponsors((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
@@ -107,9 +94,49 @@ export function SponsorsTab() {
   function removeSponsor(id: string) {
     setSponsors((prev) => prev.filter((s) => s.id !== id))
   }
+  async function uploadLogo(id: string, file: File) {
+    setUploadingId(id)
+    setErr(null)
+    try {
+      const url = await uploadTournamentImage(tournamentId, 'sponsor', file)
+      updateSponsor(id, { logoUrl: url })
+    } catch (e) {
+      setErr(authErrorMessage(e))
+    } finally {
+      setUploadingId(null)
+    }
+  }
+  async function save() {
+    setSaving(true)
+    setErr(null)
+    try {
+      await updateTournament(tournamentId, { sponsors })
+    } catch (e) {
+      setErr(authErrorMessage(e))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="px-8 py-6 space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] text-zinc-500">Phân bậc nhà tài trợ. Logo upload trực tiếp; bấm Lưu để cập nhật.</p>
+        <button
+          onClick={save}
+          disabled={saving}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors',
+            saving ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-400 text-white',
+          )}
+        >
+          <Save className="w-4 h-4" />
+          {saving ? 'Đang lưu...' : 'Lưu nhà tài trợ'}
+        </button>
+      </div>
+
+      {err && <div className="text-[13px] text-red-300 bg-red-950/50 border border-red-900/60 rounded-md px-3 py-2">{err}</div>}
+
       {TIERS.map((tier) => {
         const items = sponsors.filter((s) => s.tier === tier.key)
         return (
@@ -137,7 +164,9 @@ export function SponsorsTab() {
                   <SponsorCard
                     key={s.id}
                     s={s}
+                    uploading={uploadingId === s.id}
                     onChange={(patch) => updateSponsor(s.id, patch)}
+                    onUploadLogo={(file) => uploadLogo(s.id, file)}
                     onRemove={() => removeSponsor(s.id)}
                   />
                 ))}

@@ -2,7 +2,7 @@
 
 > **Status:** Draft v0.1
 > **Ngày:** 2026-05-28
-> **Scope:** MVP — Single Elimination only. Round Robin, Group + Playoff sẽ có spec riêng ở P4.
+> **Scope:** 3 thể thức — `single_elim` (đặc tả đầy đủ dưới đây), `round_robin`, `group_ko`. Thuật toán RR/Group tóm tắt ở §11; chi tiết sinh match RR/Group sẽ hoàn thiện khi implement P5.
 > **Kèm:** [system-architecture.md](system-architecture.md) §3 (ERD Match/Bracket), [project-overview-pdr.md](project-overview-pdr.md) §4 (Category lifecycle).
 
 ---
@@ -15,7 +15,7 @@
 3. Hỗ trợ **crossover seeding** (sơ đồ chuẩn): top seeds gặp nhau ở vòng càng muộn càng tốt.
 4. Hỗ trợ **re-arrange** (swap 2 slot) sau khi đã bốc thăm, tạo bracket version mới.
 
-**Không thuộc spec này:** Round Robin, Double Elimination, Group + Playoff.
+**Không thuộc spec này:** Double Elimination. (Round Robin & Group + KO: xem §11.)
 
 ---
 
@@ -616,3 +616,24 @@ async function drawBracket(categoryId): Promise<Bracket> {
 - Re-arrange P5+ có cho swap khác round không? Nếu có, cascade revert toàn bộ?
 - Có cần hiển thị "Path to final" cho từng VĐV (highlight 1 path) không? UI nice-to-have.
 - Có support "skip seed" (vd seed 1, 2, không có seed 3, seed 4 = D)? Hiện validate phải liên tục 1..K — strict hơn, dễ debug.
+
+---
+
+## 11. Round Robin & Group + KO (tóm tắt)
+
+> Bổ sung khi mở rộng 3 thể thức. Chi tiết sinh match sẽ chốt lúc implement P5.
+
+### 11.1 Round Robin (`round_robin`)
+- Mọi đội gặp nhau 1 lượt: `C(n,2)` trận. Sinh cặp bằng circle method (round-robin scheduling) để rải đều lượt nghỉ.
+- Không có `nextMatchId` (không loại trực tiếp). Mỗi trận độc lập.
+- **Xếp hạng**: điểm (thắng=2, thua=0 — hoặc cấu hình) → tie-break theo hiệu số game (`gameDiff`) → đối đầu trực tiếp.
+- UI: bảng xếp hạng (TR/T/B/+−/Điểm) + danh sách trận.
+
+### 11.2 Group + KO (`group_ko`)
+- `formatConfig = { groupCount, qualifyPerGroup }`.
+- **Vòng bảng**: chia đội vào `groupCount` bảng (rải seed theo bảng), mỗi bảng đá round-robin (§11.1) → xếp hạng nội bảng.
+- **Vòng trong (KO)**: lấy `qualifyPerGroup` đội đầu mỗi bảng → seed vào bracket loại trực tiếp (§3–§10), thường ghép nhất-bảng-A vs nhì-bảng-B chéo nhau.
+- UI: lưới bảng (đội qualified tô sáng) + KO bracket (tái dùng renderer single-elim).
+
+### 11.3 Match.order & lịch
+- Mọi thể thức: match có `order` (thứ tự thi đấu). BTC kéo đổi ở trang Lịch → tính lại `scheduledAt`. Gán sân ở Vận hành LIVE.
