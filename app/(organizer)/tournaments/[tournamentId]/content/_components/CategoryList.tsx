@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { Search, SlidersHorizontal, Plus, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CategoryRow } from './CategoryRow'
+import { CategoryCard } from './CategoryCard'
 import { CreateCategoryDialog } from './CreateCategoryDialog'
 import type { CategoryWithStats, CategoryRegistrationStatus } from '@/lib/types/category'
 
@@ -170,9 +170,9 @@ export function CategoryList({ categories, tournamentId, canCreate }: Props) {
             onClear={() => { setSearch(''); setStatusFilter('all') }}
           />
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map((cat) => (
-              <CategoryRow
+              <CategoryCard
                 key={cat.id}
                 category={cat}
                 onEdit={handleEdit}

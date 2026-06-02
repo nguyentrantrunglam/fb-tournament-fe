@@ -116,9 +116,10 @@ erDiagram
         date startDate
         date endDate
         string location
-        string bannerUrl "nullable"
-        string rulesText "rich text, nullable"
-        json sponsors "array of {name, logoUrl, websiteUrl}"
+        string bannerUrl "2000x1000, nullable"
+        string logoUrl "logo giải, nullable"
+        string rulesText "markdown, nullable"
+        json sponsors "array of {id, tier, name, logoUrl, link, description}"
         json paymentConfig "{accountHolder, accountNumber, bankCode, transferMemoTemplate, qrUrl}"
         bool isPublic
         string ownerUid FK
@@ -263,7 +264,7 @@ cccdIndex/{cccd}                         # Lookup uniqueness; NO client read acc
 └── { userId: string, createdAt: timestamp }
 
 tournaments/{tournamentId}
-├── (fields: Tournament entity, incl. sponsors[], paymentConfig, bannerUrl, rulesText)
+├── (fields: Tournament entity, incl. sponsors[], paymentConfig, bannerUrl, logoUrl, rulesText)
 ├── roles/{userId}                       # TournamentRole — doc id = userId để unique
 ├── courts/{courtId}                     # incl. currentRefereeUid, currentMatchId, status
 ├── categories/{categoryId}

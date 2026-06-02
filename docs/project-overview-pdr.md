@@ -70,9 +70,9 @@ Hệ thống web cho phép bất kỳ ai cũng có thể:
 - Tên giải, mô tả ngắn, ngày bắt đầu, ngày kết thúc, địa điểm.
 
 **Thông tin chi tiết (bước Config, có thể chỉnh sau):**
-- **Banner** (ảnh bìa, upload Firebase Storage).
-- **Thể lệ** (rich text dài — luật chơi, quy định riêng).
-- **Nhà tài trợ** (danh sách sponsors): mỗi sponsor có `name`, `logoUrl`, `websiteUrl` (nullable).
+- **Banner & logo** (`bannerUrl` 2000×1000 + `logoUrl` vuông, upload Firebase Storage).
+- **Thể lệ** (`rulesText`, markdown — luật chơi, quy định riêng).
+- **Nhà tài trợ** (`sponsors[]`): mỗi sponsor có `tier` (kim cương / vàng / bạc / đơn vị vận hành / bảo trợ truyền thông), `name`, `logoUrl`, `link`, `description`.
 - **Phương thức thanh toán** (`paymentConfig`): tên chủ tài khoản, số tài khoản, ngân hàng (mã napas), template nội dung CK gợi ý (biến `{tên_VĐV}` `{mã_hạng_mục}` `{số_điện_thoại}`), ảnh mã QR (upload — MVP không tự gen từ STK).
 
 **Visibility:**

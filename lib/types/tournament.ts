@@ -3,10 +3,16 @@ import type { PaymentConfig } from './payment'
 // status từ system-architecture.md §ERD Tournament
 export type TournamentStatus = 'draft' | 'open' | 'running' | 'completed' | 'cancelled'
 
+// Bậc tài trợ — hiển thị phân nhóm ở trang public
+export type SponsorTier = 'diamond' | 'gold' | 'silver' | 'operator' | 'media'
+
 export type TournamentSponsor = {
+  id: string
+  tier: SponsorTier
   name: string
-  logoUrl: string
-  websiteUrl: string
+  logoUrl: string | null
+  link: string         // website / fanpage
+  description: string
 }
 
 export type Tournament = {
@@ -17,8 +23,9 @@ export type Tournament = {
   startDate: string // ISO YYYY-MM-DD
   endDate: string
   location: string
-  bannerUrl: string | null
-  rulesText: string | null
+  bannerUrl: string | null  // banner public 2000×1000
+  logoUrl: string | null    // logo giải (vuông)
+  rulesText: string | null  // thể lệ (markdown)
   sponsors: TournamentSponsor[]
   paymentConfig: PaymentConfig | null
   isPublic: boolean

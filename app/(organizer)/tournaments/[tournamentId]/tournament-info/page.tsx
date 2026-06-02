@@ -17,6 +17,7 @@ async function getTournamentData(id: string): Promise<{
       endDate: '2026-05-30',
       location: 'Nhà thi đấu Phú Thọ, 219 Lý Thường Kiệt, Q.Phú Nhuận, TP.HCM',
       bannerUrl: null,
+      logoUrl: null,
       rulesText: null,
       sponsors: [],
       paymentConfig: null,
