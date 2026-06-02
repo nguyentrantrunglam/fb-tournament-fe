@@ -5,7 +5,8 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn } from '@/lib/utils'
 import { createCategorySchema, type CreateCategoryInput } from '@/lib/validators/category'
-import { createCategory } from '@/lib/tournaments/api'
+import type { CategoryWithStats } from '@/lib/types/category'
+import { createCategory, updateCategory } from '@/lib/tournaments/api'
 import { authErrorMessage } from '@/lib/auth/auth-error'
 import {
   Dialog,
@@ -72,10 +73,24 @@ type Props = {
   onOpenChange: (open: boolean) => void
   tournamentId: string
   onCreated?: (() => void) | undefined
+  /** Truyền hạng mục để sửa; null/undefined = tạo mới */
+  editing?: CategoryWithStats | null
 }
 
-export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreated }: Props) {
+const EMPTY: CreateCategoryInput = {
+  code: '',
+  name: '',
+  playerCount: 1,
+  genderRequirement: 'men_only',
+  bestOf: 3,
+  fee: 0,
+  maxTeams: 16,
+  registrationDeadline: '',
+}
+
+export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreated, editing }: Props) {
   const [err, setErr] = useState<string | null>(null)
+  const isEdit = !!editing
   const {
     register,
     handleSubmit,
@@ -85,17 +100,27 @@ export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreat
     formState: { errors, isSubmitting },
   } = useForm<CreateCategoryInput>({
     resolver: zodResolver(createCategorySchema) as Resolver<CreateCategoryInput>,
-    defaultValues: {
-      code: '',
-      name: '',
-      playerCount: 1,
-      genderRequirement: 'men_only',
-      bestOf: 3,
-      fee: 0,
-      maxTeams: 16,
-      registrationDeadline: '',
-    },
+    defaultValues: EMPTY,
   })
+
+  // Prefill khi mở dialog ở chế độ sửa
+  useEffect(() => {
+    if (!open) return
+    if (editing) {
+      reset({
+        code: editing.code,
+        name: editing.name,
+        playerCount: editing.playerCount,
+        genderRequirement: editing.genderRequirement,
+        bestOf: editing.bestOf,
+        fee: editing.fee,
+        maxTeams: editing.maxTeams,
+        registrationDeadline: (editing.registrationDeadline ?? '').slice(0, 16),
+      })
+    } else {
+      reset(EMPTY)
+    }
+  }, [open, editing, reset])
 
   const playerCount      = watch('playerCount')
   const genderRequirement = watch('genderRequirement')
@@ -111,13 +136,14 @@ export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreat
 
   function handleClose() {
     onOpenChange(false)
-    reset()
+    reset(EMPTY)
   }
 
   async function onSubmit(data: CreateCategoryInput) {
     setErr(null)
     try {
-      await createCategory(tournamentId, data)
+      if (editing) await updateCategory(tournamentId, editing.id, data)
+      else await createCategory(tournamentId, data)
       onCreated?.()
       handleClose()
     } catch (e) {
@@ -129,7 +155,7 @@ export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreat
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="text-white text-base">Tạo hạng mục mới</DialogTitle>
+          <DialogTitle className="text-white text-base">{isEdit ? 'Sửa hạng mục' : 'Tạo hạng mục mới'}</DialogTitle>
         </DialogHeader>
 
         {err && (
@@ -244,7 +270,7 @@ export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreat
                   : 'bg-orange-500 hover:bg-orange-400 text-white',
               )}
             >
-              {isSubmitting ? 'Đang tạo...' : 'Tạo hạng mục'}
+              {isSubmitting ? 'Đang lưu...' : isEdit ? 'Lưu thay đổi' : 'Tạo hạng mục'}
             </button>
           </DialogFooter>
         </form>

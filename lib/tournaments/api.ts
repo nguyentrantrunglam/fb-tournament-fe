@@ -71,6 +71,11 @@ export async function createCategory(tournamentId: string, data: CreateCategoryI
   return (await fn({ tournamentId, ...data })).data
 }
 
+export async function updateCategory(tournamentId: string, categoryId: string, data: CreateCategoryInput): Promise<void> {
+  const fn = httpsCallable(getClientFunctions(), 'updateCategory')
+  await fn({ tournamentId, categoryId, ...data })
+}
+
 export async function updateTournament(id: string, patch: UpdateTournamentPatch): Promise<void> {
   const fn = httpsCallable(getClientFunctions(), 'updateTournament')
   await fn({ id, ...patch })

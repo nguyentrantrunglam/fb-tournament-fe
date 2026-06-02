@@ -65,6 +65,7 @@ export function CategoryList({ categories, tournamentId, canCreate, onChanged }:
   const [search, setSearch]           = useState('')
   const [statusFilter, setStatusFilter] = useState<FilterValue>('all')
   const [createOpen, setCreateOpen]   = useState(false)
+  const [editing, setEditing]         = useState<CategoryWithStats | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -82,8 +83,8 @@ export function CategoryList({ categories, tournamentId, canCreate, onChanged }:
   const description = buildDescription(categories, canCreate)
 
   function handleEdit(id: string) {
-    // TODO: navigate to /content/[categoryId]/edit khi Phase 3 xong
-    console.log('edit category', id)
+    const cat = categories.find((c) => c.id === id)
+    if (cat) setEditing(cat)
   }
 
   function handleLifecycleAction(id: string, action: 'open' | 'close') {
@@ -184,11 +185,17 @@ export function CategoryList({ categories, tournamentId, canCreate, onChanged }:
         )}
       </div>
 
-      {/* ── Create dialog ── */}
+      {/* ── Create / Edit dialog ── */}
       <CreateCategoryDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
+        open={createOpen || editing !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setCreateOpen(false)
+            setEditing(null)
+          }
+        }}
         tournamentId={tournamentId}
+        editing={editing}
         onCreated={onChanged}
       />
     </div>

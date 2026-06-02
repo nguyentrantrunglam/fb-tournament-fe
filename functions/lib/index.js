@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createCategory = exports.updateTournament = exports.listMyTournaments = exports.createTournament = exports.adminDeleteUser = exports.adminUpdateUser = exports.adminSetGlobalRole = exports.adminListUsers = exports.completeProfile = exports.health = void 0;
+exports.updateCategory = exports.createCategory = exports.updateTournament = exports.listMyTournaments = exports.createTournament = exports.adminDeleteUser = exports.adminUpdateUser = exports.adminSetGlobalRole = exports.adminListUsers = exports.completeProfile = exports.health = void 0;
 var health_1 = require("./handlers/health");
 Object.defineProperty(exports, "health", { enumerable: true, get: function () { return health_1.health; } });
 var complete_profile_1 = require("./handlers/auth/complete-profile");
@@ -21,4 +21,6 @@ var update_tournament_1 = require("./handlers/tournament/update-tournament");
 Object.defineProperty(exports, "updateTournament", { enumerable: true, get: function () { return update_tournament_1.updateTournament; } });
 var create_category_1 = require("./handlers/category/create-category");
 Object.defineProperty(exports, "createCategory", { enumerable: true, get: function () { return create_category_1.createCategory; } });
+var update_category_1 = require("./handlers/category/update-category");
+Object.defineProperty(exports, "updateCategory", { enumerable: true, get: function () { return update_category_1.updateCategory; } });
 //# sourceMappingURL=index.js.map
