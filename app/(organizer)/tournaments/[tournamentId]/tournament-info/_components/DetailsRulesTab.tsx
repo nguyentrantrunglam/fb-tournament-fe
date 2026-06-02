@@ -1,10 +1,11 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { Bold, Italic, Heading, List, Eye, Pencil, Save } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bold, Italic, Heading, List, Eye, Pencil, Save, FileText, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { updateTournament } from '@/lib/tournaments/api'
 import { authErrorMessage } from '@/lib/auth/auth-error'
+import { RULE_TEMPLATES, templateToMarkdown } from '@/lib/data/rule-templates'
 
 // Inline markdown tối giản: **đậm** *nghiêng*
 function renderInline(text: string) {
@@ -55,7 +56,27 @@ export function DetailsRulesTab({
   const [preview, setPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [tplOpen, setTplOpen] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
+  const tplRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!tplOpen) return
+    function onClick(e: MouseEvent) {
+      if (tplRef.current && !tplRef.current.contains(e.target as Node)) setTplOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [tplOpen])
+
+  function applyTemplate(id: string) {
+    setTplOpen(false)
+    const tpl = RULE_TEMPLATES.find((t) => t.id === id)
+    if (!tpl) return
+    if (text.trim() && !window.confirm('Thay toàn bộ nội dung điều lệ hiện tại bằng template?')) return
+    setPreview(false)
+    setText(templateToMarkdown(tpl))
+  }
 
   async function save() {
     setSaving(true)
@@ -108,6 +129,31 @@ export function DetailsRulesTab({
             <button onClick={() => prefixLine('- ')} className={toolBtn} title="Danh sách"><List className="w-4 h-4" /></button>
           </div>
           <div className="flex items-center gap-2">
+            {/* Dùng template */}
+            <div ref={tplRef} className="relative">
+              <button
+                onClick={() => setTplOpen((v) => !v)}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-md transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Dùng template
+                <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', tplOpen && 'rotate-180')} />
+              </button>
+              {tplOpen && (
+                <div className="absolute right-0 z-30 mt-1 w-64 py-1 bg-zinc-800 border border-zinc-700 rounded-md shadow-xl">
+                  {RULE_TEMPLATES.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => applyTemplate(t.id)}
+                      className="w-full text-left px-3 py-2 hover:bg-zinc-700/60 transition-colors"
+                    >
+                      <p className="text-[13px] text-white">{t.name}</p>
+                      <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">{t.description}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => setPreview((v) => !v)}
               className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-md transition-colors"
