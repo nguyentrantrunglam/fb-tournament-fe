@@ -23,7 +23,7 @@ function avatarColor(seed: string) {
 }
 
 export function AdminUsersClient() {
-  const { user: me } = useCurrentUser()
+  const { user: me, setUser } = useCurrentUser()
   const router = useRouter()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,7 +77,7 @@ export function AdminUsersClient() {
               <ArrowLeft className="w-3.5 h-3.5" /> Trang chủ
             </Link>
             <button
-              onClick={async () => { await signOut(); router.replace('/login') }}
+              onClick={async () => { await signOut(); setUser(null); router.replace('/login') }}
               className="flex items-center gap-1.5 px-3 py-2 text-[13px] border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 rounded-md transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" /> Đăng xuất

@@ -36,11 +36,12 @@ function NavCard({
 }
 
 function Home() {
-  const { user, globalRole } = useCurrentUser()
+  const { user, globalRole, setUser } = useCurrentUser()
   const router = useRouter()
 
   async function handleLogout() {
     await signOut()
+    setUser(null) // clear context so guarded screens no longer see a (now dead) session
     router.replace('/login')
   }
 

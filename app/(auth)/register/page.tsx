@@ -9,11 +9,13 @@ import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { registerSchema, type RegisterFormData } from '@/lib/validators/signup'
 import { signUp, landingForUser } from '@/lib/auth/client'
+import { useCurrentUser } from '@/lib/auth/auth-provider'
 import { authErrorMessage } from '@/lib/auth/auth-error'
 import { authInputCls, AuthHeader, FieldError, SubmitButton } from '../_components/auth-ui'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { setUser } = useCurrentUser()
   const [showPw, setShowPw] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
 
@@ -50,6 +52,7 @@ export default function RegisterPage() {
         dob: data.dob,
         ...(data.phone ? { phone: data.phone } : {}),
       })
+      setUser(user) // populate context immediately so guarded screens see the session
       router.push(landingForUser(user))
     } catch (e) {
       const msg = authErrorMessage(e)

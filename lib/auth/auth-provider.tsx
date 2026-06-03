@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { api, ApiError } from '@/lib/api/client'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { api } from '@/lib/api/client'
 import type { GlobalRole } from './roles'
 
 // SafeUser shape returned by GET /auth/me (no PII)
@@ -20,31 +20,54 @@ type AuthState = {
   user: ApiUser | null
   globalRole: GlobalRole | null
   loading: boolean
+  /** Re-probe GET /auth/me (e.g. after actions that change the session). */
+  refresh: () => Promise<void>
+  /** Set the session user directly — call after login/register/logout so the UI
+   *  reflects auth state immediately without waiting for a reload/refetch. */
+  setUser: (user: ApiUser | null) => void
 }
 
-const AuthContext = createContext<AuthState>({ user: null, globalRole: null, loading: true })
+const AuthContext = createContext<AuthState>({
+  user: null,
+  globalRole: null,
+  loading: true,
+  refresh: async () => {},
+  setUser: () => {},
+})
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({ user: null, globalRole: null, loading: true })
+  const [user, setUserState] = useState<ApiUser | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Probe the session — 401 means no active session (not logged in).
-    api.get<ApiUser>('/auth/me')
-      .then((user) => {
-        setState({ user, globalRole: user.globalRole, loading: false })
-      })
-      .catch((err: unknown) => {
-        if (err instanceof ApiError && err.status === 401) {
-          // Expected: not logged in.
-          setState({ user: null, globalRole: null, loading: false })
-        } else {
-          // Network error or unexpected — treat as not logged in to avoid infinite spinner.
-          setState({ user: null, globalRole: null, loading: false })
-        }
-      })
+  const refresh = useCallback(async () => {
+    try {
+      // 401 (not logged in) and any error → treated as no session.
+      const u = await api.get<ApiUser>('/auth/me')
+      setUserState(u)
+    } catch {
+      setUserState(null)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>
+  const setUser = useCallback((u: ApiUser | null) => {
+    setUserState(u)
+    setLoading(false)
+  }, [])
+
+  // Probe the session on mount (handles reloads / direct navigation).
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  return (
+    <AuthContext.Provider
+      value={{ user, globalRole: user?.globalRole ?? null, loading, refresh, setUser }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useCurrentUser(): AuthState {

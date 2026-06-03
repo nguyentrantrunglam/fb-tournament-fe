@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, ArrowLeft, LogOut, Loader2, Trophy } from 'lucide-react'
 import { signOut } from '@/lib/auth/client'
+import { useCurrentUser } from '@/lib/auth/auth-provider'
 import { authErrorMessage } from '@/lib/auth/auth-error'
 import { listMyTournaments, type MyTournament } from '@/lib/tournaments/api'
 import { TournamentHeroCard } from '@/components/tournament-hero-card'
@@ -12,6 +13,7 @@ import { CreateTournamentDialog } from './CreateTournamentDialog'
 
 export function MyTournamentsClient() {
   const router = useRouter()
+  const { setUser } = useCurrentUser()
   const [list, setList] = useState<MyTournament[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +42,7 @@ export function MyTournamentsClient() {
             <button onClick={() => setCreateOpen(true)} className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-medium rounded-md transition-colors">
               <Plus className="w-4 h-4" /> Tạo giải
             </button>
-            <button onClick={async () => { await signOut(); router.replace('/login') }} className="flex items-center gap-1.5 px-3 py-2 text-[13px] border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 rounded-md transition-colors">
+            <button onClick={async () => { await signOut(); setUser(null); router.replace('/login') }} className="flex items-center gap-1.5 px-3 py-2 text-[13px] border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 rounded-md transition-colors">
               <LogOut className="w-3.5 h-3.5" /> Đăng xuất
             </button>
           </div>

@@ -9,11 +9,13 @@ import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { loginSchema, type LoginFormData } from '@/lib/validators/login'
 import { signInEmail, landingForUser } from '@/lib/auth/client'
+import { useCurrentUser } from '@/lib/auth/auth-provider'
 import { authErrorMessage } from '@/lib/auth/auth-error'
 import { authInputCls, AuthHeader, FieldError, SubmitButton } from '../_components/auth-ui'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { setUser } = useCurrentUser()
   const [showPw, setShowPw] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const {
@@ -29,6 +31,7 @@ export default function LoginPage() {
     setAuthError(null)
     try {
       const user = await signInEmail(data.email, data.password)
+      setUser(user) // populate context immediately so guarded screens see the session
       router.push(landingForUser(user))
     } catch (e) {
       setAuthError(authErrorMessage(e))
