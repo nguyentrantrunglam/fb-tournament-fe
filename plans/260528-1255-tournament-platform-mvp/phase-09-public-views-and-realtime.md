@@ -11,7 +11,7 @@ dependencies: [8]
 
 ## Overview
 
-Build trang public cho khán giả + VĐV xem giải: trang chủ list giải, trang giải detail (info, sponsors, payment), trang category (danh sách đội + bracket), trang bracket interactive, trang lịch thi đấu, score realtime. RSC cho SEO + cache, Firestore listener cho score realtime.
+Build trang public cho khán giả + VĐV xem giải: trang chủ list giải, trang giải detail (info, sponsors, payment), trang category (danh sách đội + bracket), trang bracket interactive, trang lịch thi đấu, score realtime. RSC fetch `GET /public/*` (no-auth) cho SEO + cache, Socket.IO client cho score realtime.
 
 ## Requirements
 
@@ -24,18 +24,20 @@ Build trang public cho khán giả + VĐV xem giải: trang chủ list giải, t
   - Sau bốc thăm: hiển thị bracket interactive.
 - Trang bracket `/giai/[slug]/[categoryCode]/bracket`: sơ đồ bracket dạng tree, click match → modal detail.
 - Trang lịch `/giai/[slug]/lich`: timeline tất cả match công khai theo ngày + sân.
-- Score realtime: page bracket + match detail tự cập nhật < 3s qua Firestore listener.
+- Score realtime: page bracket + match detail tự cập nhật < 3s qua Socket.IO (thực tế < 1s).
 
 **Non-functional:**
-- Trang chủ p95 < 1.5s (RSC + Vercel edge cache).
+- Trang chủ p95 < 1.5s (RSC + cache).
 - Bracket page p95 < 2s.
-- Score realtime latency p95 < 3s.
+- Score realtime latency p95 < 3s (Socket.IO push, thực tế < 1s).
 - Mobile responsive ≥ 360px width.
 - Lighthouse a11y score ≥ 90.
 
 ## Architecture
 
-**Files:**
+**Repo:** frontend = `badminton-web` (repo này). Public read endpoints ở `badminton-api` module `public/` (`@Public()`).
+
+**Files (badminton-web):**
 ```
 app/(public)/
 ├── page.tsx                                  # trang chủ
@@ -59,35 +61,42 @@ components/public/
 ├── match-detail-modal.tsx                    # full games breakdown + realtime
 └── schedule-timeline.tsx                     # by day/court
 
-lib/queries/
-├── use-public-tournaments.ts                 # RSC + client variant
-├── use-public-bracket.ts                     # Firestore listener
-└── use-match-detail.ts                       # listener for live score
+lib/api/
+├── use-public-tournaments.ts                 # RSC fetch + client variant (GET /public/tournaments)
+├── use-public-bracket.ts                     # Socket.IO subscribe room category:{cid}
+└── use-match-detail.ts                       # Socket.IO subscribe room match:{mid}
 
-lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL (data URL or pregenerated)
+lib/composite-avatar.ts                       # compose 2 avatars to 1 image (CSS render, unchanged)
 ```
+
+**Public read endpoints (badminton-api module `public/`, `@Public()`):**
+- `GET /public/tournaments?status=` — list isPublic=true.
+- `GET /public/tournaments/:slug` — detail (isPublic only).
+- `GET /public/tournaments/:slug/categories/:code` — category + roster (roster CHỈ khi `registrationStatus=closed`).
+- `GET /public/tournaments/:slug/categories/:code/bracket` — active bracket + matches (đã ẩn PII qua serializer).
+- `GET /public/tournaments/:slug/schedule`.
 
 ## Related Code Files
 
 - Create: tất cả ở Architecture
 - Modify:
   - `app/layout.tsx` (P1) bổ sung header navigation public
-  - `firestore.rules` đảm bảo public read rules cover các case (đã set ở P3+P4, verify lại)
+  - `badminton-api` module `public/`: serializer đảm bảo public response KHÔNG leak `identity.nationalId`/`phone`/`email` (verify lại — set ở P3+P4)
 - Delete: none
 
 ## Implementation Steps
 
 ### Data fetching
 
-1. **RSC public read helpers**:
-   - `getPublicTournaments(limit=20)`: Admin SDK query `tournaments where isPublic == true order by startDate desc`.
-   - `getTournamentBySlug(slug)`: query slug index hoặc collection scan.
-   - `getCategoryWithRoster(tid, categoryId)`: get category + approved registrations + user info (denormalize displayName/avatar).
-   - `getBracket(tid, categoryId)`: read active bracket + matches + sides.
-   - **Cache strategy**: `revalidate = 60` cho list page; `revalidate = 30` cho category page; bracket page có realtime listener nên SSR initial + client re-subscribe.
-2. **Client realtime hooks**:
-   - `usePublicBracket(tid, categoryId)`: Firestore listener `matches where bracketId == activeBracketId`.
-   - `useMatchDetail(matchId)`: listener match doc + games subcollection.
+1. **RSC public read helpers** (fetch `GET /public/*`, no-auth):
+   - `getPublicTournaments(limit=20)`: `GET /public/tournaments?status=` → service query `isPublic == true order by startDate desc`.
+   - `getTournamentBySlug(slug)`: `GET /public/tournaments/:slug`.
+   - `getCategoryWithRoster(slug, code)`: `GET /public/tournaments/:slug/categories/:code` (category + approved registrations CHỈ khi closed; serializer denormalize displayName/avatar, ẩn PII).
+   - `getBracket(slug, code)`: `GET /public/tournaments/:slug/categories/:code/bracket` (active bracket + matches sideA/sideB embedded).
+   - **Cache strategy**: `revalidate = 60` cho list page; `revalidate = 30` cho category page; bracket page có realtime Socket.IO nên SSR initial + client re-subscribe.
+2. **Client realtime hooks** (Socket.IO client qua `lib/socket.ts`):
+   - `usePublicBracket(tid, categoryId)`: join room `category:{cid}`, listen `match:updated` + `bracket:updated`, merge vào TanStack Query cache.
+   - `useMatchDetail(matchId)`: join room `match:{mid}`, listen `match:updated` (match doc đã serialize, games embedded). Public join room không cần auth (read-only).
 
 ### Pages
 
@@ -101,7 +110,7 @@ lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL
    - Header: banner full-width + tên giải + ngày + địa điểm.
    - Section "Thông tin": rules text formatted.
    - Section "Nhà tài trợ": sponsor strip horizontal scroll.
-   - Section "Thông tin thanh toán": QR + bank info text (chỉ hiện cho user signed in? hay public? — quyết định: public — phong trào không có rủi ro).
+   - Section "Thông tin thanh toán": QR + bank info text (quyết định: public — phong trào không có rủi ro).
    - Section "Hạng mục": grid cards, mỗi card link tới `/giai/[slug]/[categoryCode]`.
 5. **Category page** (`/giai/[slug]/[categoryCode]`):
    - Header: tên category + code + format + bestOf + status badge.
@@ -111,15 +120,15 @@ lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL
      - `closed` + no bracket: roster grid (team-card list).
      - `closed` + bracket active: link "Xem bracket" + summary.
 6. **Bracket page** (`/giai/[slug]/[categoryCode]/bracket`):
-   - SSR initial state (RSC).
-   - Client component re-subscribe Firestore listener.
+   - SSR initial state (RSC fetch `GET /public/.../bracket`).
+   - Client component re-subscribe Socket.IO room `category:{cid}`.
    - Render bracket tree dạng CSS grid:
      - Mỗi round = 1 column.
      - Mỗi match = card với 2 side + score.
      - Lines connect matches qua nextMatchId (CSS pseudo-elements hoặc SVG overlay).
    - Click match → modal detail.
 7. **Match detail modal**:
-   - Realtime listener.
+   - Realtime: subscribe Socket.IO room `match:{mid}`.
    - Header: round + category + scheduledAt + court (nếu có) + status.
    - 2 cột side A/B với tên VĐV (đôi: 2 tên + composite avatar).
    - Games breakdown: list game với scoreA-scoreB + winner highlight.
@@ -132,20 +141,18 @@ lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL
 ### Composite avatar
 
 9. **`composite-avatar.ts`**:
-   - Server-side: tạo SVG composite từ 2 avatar URL (2 vòng tròn overlap).
-   - Cache result: gen 1 lần, lưu Firebase Storage `tournaments/{tid}/composite/{registrationId}.svg` (lazy).
-   - Hoặc đơn giản hơn: client render 2 img absolute positioned trong wrapper div (KISS, không cần gen file).
-   - **MVP: client CSS render**, không gen file.
+   - **MVP: client CSS render** — 2 img absolute positioned trong wrapper div (2 vòng tròn overlap), KISS, không gen file.
+   - (P5+ optional: server gen SVG composite, cache lên DigitalOcean Spaces `tournaments/{tid}/composite/{registrationId}.svg`.)
 
-### Rules verification
+### Public read verification (thay public firestore rules)
 
-10. **Public read rules test**:
-    - Anonymous user xem tournament public → success.
-    - Anonymous user xem tournament private → reject.
-    - Anonymous xem category roster trước `closed` → reject (registrations).
-    - Anonymous xem category roster sau `closed` → success.
-    - Anonymous xem matches của tournament public → success.
-    - Anonymous xem `users/{uid}/private/identity` → reject.
+10. **Public read e2e test** (supertest đánh vào public endpoints — verify no PII leak):
+    - Anonymous fetch `GET /public/tournaments/:slug` (isPublic) → 200.
+    - Anonymous fetch tournament private (isPublic=false) → 404/403.
+    - Anonymous fetch category roster trước `closed` → roster ẩn (chỉ meta).
+    - Anonymous fetch category roster sau `closed` → roster hiển thị (approved).
+    - Anonymous fetch `GET /public/.../bracket` (tournament public) → 200.
+    - Response KHÔNG chứa `identity.nationalId` / `phone` / `email` (serializer `@Exclude`).
 
 ### SEO + meta
 
@@ -153,7 +160,7 @@ lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL
     - Homepage: title "Giải đấu Cầu lông Phong trào".
     - Tournament page: title `{tournament.name}`, OG image = banner.
     - Category page: title `{category.name} - {tournament.name}`.
-12. **Sitemap**: `app/sitemap.ts` generate từ public tournaments.
+12. **Sitemap**: `app/sitemap.ts` generate từ public tournaments (`GET /public/tournaments`).
 
 ### Performance
 
@@ -161,7 +168,7 @@ lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL
     - Static segments where possible.
     - `unstable_cache` cho tournament list (60s).
 14. **Image optimization**: `next/image` cho banner + sponsor logos + avatar.
-15. **Bundle splitting**: bracket viewer + realtime listener lazy load (dynamic import).
+15. **Bundle splitting**: bracket viewer + Socket.IO client lazy load (dynamic import).
 
 ## Success Criteria
 
@@ -169,9 +176,9 @@ lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL
 - [ ] Tournament page hiển thị đủ banner, rules, sponsors, payment.
 - [ ] Category page conditional content đúng theo lifecycle.
 - [ ] Bracket page render bracket tree cho 8/16/32 đội đúng visual.
-- [ ] Score realtime: nhập điểm ở 1 client → client khác cập nhật < 3s.
+- [ ] Score realtime: nhập điểm ở 1 client → client khác cập nhật < 3s qua Socket.IO.
 - [ ] Mobile responsive: bracket scroll horizontal, không break layout.
-- [ ] Rules test public read pass.
+- [ ] Public read e2e test pass (no PII leak).
 - [ ] Lighthouse a11y ≥ 90 cho homepage + bracket page.
 
 ## Risk Assessment
@@ -179,18 +186,18 @@ lib/composite-avatar.ts                       # compose 2 avatars to 1 image URL
 | Risk | Mitigation |
 |---|---|
 | Bracket layout phức tạp cho 32+ đội | CSS grid với overflow-x scroll; mobile UX rough nhưng usable |
-| Firestore read cost tăng nhanh khi giải viral | Listener chỉ subscribe matches của 1 bracket (~100 docs); cached SSR cho public list |
+| Socket.IO connection load tăng khi giải viral | Public client chỉ join room category/match cần xem (~100 docs); cached SSR cho public list; multi-instance scaling (Redis adapter) defer P5+ |
 | RSC cache stale khi score đổi liên tục | Bracket page client-only realtime, không cache; tournament/category page revalidate 30-60s đủ |
-| SEO crawler không render JS bracket | Initial state SSR có data, crawler thấy được; realtime listener là enhancement |
+| SEO crawler không render JS bracket | Initial state SSR có data (RSC fetch), crawler thấy được; Socket.IO realtime là enhancement |
 | Public hiển thị payment QR có lừa đảo? | Out of scope MVP. P5+ verify QR hoặc remove. |
 | Composite avatar render lệch | MVP client CSS, không gen file. Test với 0/1/2 avatar fallback. |
 
 ## Security Considerations
 
-- Verify rules: public CHỈ thấy public fields (displayName, gender, avatar). KHÔNG leak email/cccd qua RSC response.
-- Storage rules: banner/sponsor logo public read OK; team photo public read OK sau `closed`.
-- Rate limit không cần ở public read (Firestore handle).
-- CSP headers: chỉ cho phép Firebase Storage origin cho images.
+- Public read endpoints (`@Public()`) qua serializer: CHỈ trả public fields (displayName, gender, avatar). KHÔNG leak `email`/`nationalId`/`phone` qua RSC fetch hay response.
+- DigitalOcean Spaces: banner/sponsor logo/team photo public read URL OK (bucket policy public-read cho prefix ảnh).
+- Rate limit public read: nhẹ qua `ThrottlerModule` ở API (read persistent server, không lo Firestore quota).
+- CSP headers: chỉ cho phép DigitalOcean Spaces origin cho images.
 
 ## Next Steps
 

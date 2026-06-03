@@ -1,10 +1,10 @@
 ---
 title: "Tournament Platform MVP — P1 to P3 (Auth, Registration, Bracket, Operations, Public)"
-description: "Greenfield implementation of badminton tournament platform: Next.js 15 + Firebase. Scope MVP P1-P3 — auth, tournament setup, registration, bracket, match operation, public realtime view."
+description: "Greenfield implementation of badminton tournament platform: Next.js 15 (badminton-web) + NestJS (badminton-api) + MongoDB + Socket.IO + DigitalOcean Spaces. Scope MVP P1-P3 — auth, tournament setup, registration, bracket, match operation, public realtime view."
 status: pending
 priority: P1
 branch: ""
-tags: [greenfield, mvp, nextjs, firebase, tournament]
+tags: [greenfield, mvp, nextjs, nestjs, mongodb, socketio, tournament]
 blockedBy: []
 blocks: []
 created: "2026-05-28T06:03:44.000Z"
@@ -16,12 +16,14 @@ source: skill
 
 ## Overview
 
-Greenfield implementation của platform công khai quản lý giải đấu cầu lông phong trào. Stack: **Next.js 15 (App Router + RSC) + Firebase (Auth + Firestore + Storage + Cloud Functions)**. Scope plan này là **MVP P1-P3** theo PDR roadmap — đủ để 1 BTC chạy 1 giải hoàn chỉnh end-to-end. P4-P5 (doubles UI polish, round-robin, group+playoff, trọng tài invite flow) sẽ có plan riêng sau khi MVP demo thành công.
+Greenfield implementation của platform công khai quản lý giải đấu cầu lông phong trào. Stack (pivot v0.2): **Next.js 15 (App Router + RSC) = `badminton-web` (repo này) + NestJS = `badminton-api` (repo riêng) + MongoDB (replica set) + Socket.IO + DigitalOcean Spaces (S3)**. Deploy: web → **Vercel** (dev+prod); api → **Docker + Nginx**. Auth: email/password qua API session (không Google OAuth). Scope plan này là **MVP P1-P3** theo PDR roadmap — đủ để 1 BTC chạy 1 giải hoàn chỉnh end-to-end. P4-P5 (doubles UI polish, round-robin, group+playoff, trọng tài invite flow) sẽ có plan riêng sau khi MVP demo thành công.
+
+> **Pivot note:** plan này đã rewrite từ stack Firebase (v0.1) sang NestJS+Mongo+Socket.IO (v0.2). Domain/business rule giữ nguyên. Map chi tiết: [architecture-pivot mapping report](../reports/architecture-pivot-260603-1217-firebase-to-nestjs-mongo-mapping-report.md).
 
 **Artifact spec đã lock (tiền đề bắt buộc):**
 - [docs/project-overview-pdr.md](../../docs/project-overview-pdr.md) — D1-D40 decisions, scope, acceptance criteria 18-step
-- [docs/system-architecture.md](../../docs/system-architecture.md) — ERD, Firestore schema, CF structure, 10 flows
-- [docs/bracket-algorithm-spec.md](../../docs/bracket-algorithm-spec.md) — single-elim + crossover seeding, mode auto-detect
+- [docs/system-architecture.md](../../docs/system-architecture.md) — ERD, MongoDB schema, NestJS structure, guards, Socket.IO, 10 flows
+- [docs/bracket-algorithm-spec.md](../../docs/bracket-algorithm-spec.md) — single-elim + crossover seeding, mode auto-detect (pure domain, không đổi khi pivot)
 
 **Mục tiêu cuối plan:** Chạy thử 1 giải nội bộ thật (8 VĐV đơn nam + 4 cặp mixed + 5 cặp open) từ đầu đến cuối qua app, có khán giả xem realtime.
 
@@ -54,11 +56,13 @@ Greenfield implementation của platform công khai quản lý giải đấu c�
 
 ## Cross-Phase Architecture Anchors
 
-- **Logic portable (domain/ thuần)**: P05 và P07 cài đặt thuật toán bracket trong `functions/src/domain/` không import firebase. Mọi phase khác chạm bracket logic phải qua adapter, không gọi domain trực tiếp.
-- **CF handlers naming**: `handlers/{aggregate}/{verb}-{noun}.ts` (vd `handlers/match/end-match.ts`). Mọi phase tuân thủ.
-- **Validation as pure functions**: gender, CCCD, category-config — `domain/validation/*.ts`. Share giữa client (Zod schema) + server (CF).
-- **PII isolation**: `users/{uid}/private/identity` subdoc. Mọi phase chạm CCCD/email/phone phải tôn trọng.
-- **Audit log**: mọi mutation quan trọng → write `tournaments/{tid}/audit/{eventId}` doc. Schema audit: `{ type, actorUid, payload, at }`.
+- **Logic portable (domain/ thuần)**: P05 và P07 cài đặt thuật toán bracket trong `src/domain/` (badminton-api), KHÔNG import nestjs/mongoose. Mọi phase khác chạm bracket logic phải qua service/repository, không gọi domain trực tiếp từ controller.
+- **Service ↔ endpoint naming**: controller route theo REST (`POST /matches/:mid/end`), service method `endMatch()`. Map đầy đủ ở mapping report §2. Mọi phase tuân thủ.
+- **Validation as pure functions**: gender, national-id, category-config — `src/domain/validation/*.ts`. Share shape giữa client (Zod) + server (DTO/class-validator).
+- **PII isolation**: `user.identity = { nationalId, phone }` + `@Exclude()` serializer. Mọi phase chạm nationalId/email/phone phải tôn trọng (không leak ra response/log).
+- **Audit log**: mọi mutation quan trọng → insert `auditLogs` doc `{ tournamentId?, type, actorUserId, payload, at }`, immutable.
+- **Realtime**: mọi mutation ảnh hưởng view → service emit Socket.IO sau khi commit transaction (`match:updated`, `bracket:updated`, `registration:updated`, `court:updated`).
+- **Atomicity**: mutation đa-document (bốc thăm, end-match, cascade, withdrawal) chạy trong **Mongo session transaction** (replica set bắt buộc).
 
 ## Out of Plan (định kỳ revisit)
 
@@ -70,12 +74,13 @@ Greenfield implementation của platform công khai quản lý giải đấu c�
 
 | Risk | Impact | Mitigation Phase |
 |---|---|---|
-| Firestore batch limit (500 ops) cho bracket lớn | High | P05 — chunked transaction cho N≥128 |
-| Cascade revert phá vỡ consistency | High | P07 — atomic batch + UI confirm dialog + preview-cascade endpoint |
-| Race condition slot count khi đăng ký đồng thời | Medium | P04 — running counter trong CF transaction |
-| Firestore Security Rules sai sót leak data | High | P02 + P04 + P09 — security rules test bằng emulator |
-| Trọng tài đổi giữa match đang chạy | Low | P08 — snapshot refereeUid khi assign court, không re-sync |
-| Public page tải chậm khi giải đông | Medium | P09 — RSC + Vercel edge cache, denormalize fields cần thiết |
+| Mongo transaction cần replica set; misconfig → atomic fail | High | P01 — docker-compose RS 1-node dev; RS thật prod; healthcheck |
+| Cascade revert phá vỡ consistency | High | P07 — Mongo transaction + UI confirm dialog + preview-cascade endpoint |
+| Race condition slot count khi đăng ký đồng thời | Medium | P04 — running counter trong Mongo transaction; unique guard |
+| Authz guard sai sót leak data (thay rules) | High | P02 + P04 + P09 — guard + serializer + e2e auth test (supertest) |
+| Trọng tài đổi giữa match đang chạy | Low | P08 — snapshot refereeUserId khi assign court, không re-sync |
+| Session/cookie cross-origin web↔api sai | High | P01+P02 — cùng domain qua Nginx hoặc CORS credentials + SameSite |
+| Public page tải chậm khi giải đông | Medium | P09 — RSC + HTTP cache (Nginx/Vercel), denormalize fields cần thiết |
 
 ## Dependencies
 
@@ -127,3 +132,19 @@ Re-checked plan.md + 10 phase files post-validation:
 **Unresolved contradictions:** None.
 
 **Recommendation:** ✅ Plan eligible for implementation. Proceed with `/ck:cook`.
+
+### Session 2 — 2026-06-03 (Architecture pivot)
+
+**Trigger:** Feedback reviewer — pivot toàn bộ stack Firebase → NestJS + MongoDB + Socket.IO + DigitalOcean Spaces + Docker/Nginx. Repo tách: `badminton-web` (repo này) + `badminton-api` (NestJS riêng).
+
+**Phạm vi rewrite:** plan.md + 10 phase files + `docs/system-architecture.md` + `docs/project-overview-pdr.md`. `docs/bracket-algorithm-spec.md` KHÔNG đụng (pure domain).
+
+**Nguyên tắc:** Mọi domain/business rule (D3–D40, 18-step acceptance, ERD fields, bracket spec, gender matrix, cascade) **giữ nguyên**. Chỉ đổi stack hạ tầng + rename `cccd→nationalId`, `*Uid→*UserId`, `globalRole user→athlete`.
+
+**Map contract:** [architecture-pivot mapping report](../reports/architecture-pivot-260603-1217-firebase-to-nestjs-mongo-mapping-report.md).
+
+**Việc MỚI do pivot (không có ở v0.1):** bcrypt + reset-token flow, connect-mongo session store + cookie cross-origin config, Mongo replica set, S3 presign service, Socket.IO gateway + session-share, Nginx reverse proxy + Dockerfile/compose.
+
+**Resolved (user 2026-06-03):** Spaces = 1 bucket prefix `tournaments/{tid}/...`; **bỏ Google OAuth** (auth email/password qua API session); **web hosting Vercel cả dev+prod** (Docker+Nginx chỉ cho api). Còn ngỏ: Socket.IO Redis adapter (defer P5+); payment gateway (out of scope, xác nhận BTC pilot).
+
+**Recommendation:** ✅ Plan đã pivot, eligible for implementation trên stack mới.
