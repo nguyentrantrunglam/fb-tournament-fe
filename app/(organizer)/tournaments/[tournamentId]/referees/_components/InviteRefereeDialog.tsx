@@ -23,12 +23,12 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null })
       <img
         src={avatarUrl}
         alt={name}
-        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+        className="w-8 h-8 rounded-full object-cover shrink-0"
       />
     )
   }
   return (
-    <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0 text-[11px] font-semibold text-zinc-300">
+    <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center shrink-0 text-[11px] font-semibold text-zinc-300">
       {initials || '?'}
     </div>
   )
@@ -46,6 +46,7 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchUserResult[]>([])
   const [searching, setSearching] = useState(false)
+  // Map keyed by user.id (MongoDB ObjectId string)
   const [selected, setSelected] = useState<Map<string, SearchUserResult>>(new Map())
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -77,16 +78,16 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
   function toggleSelect(user: SearchUserResult) {
     setSelected((prev) => {
       const next = new Map(prev)
-      if (next.has(user.uid)) next.delete(user.uid)
-      else next.set(user.uid, user)
+      if (next.has(user.id)) next.delete(user.id)
+      else next.set(user.id, user)
       return next
     })
   }
 
-  function removeSelected(uid: string) {
+  function removeSelected(id: string) {
     setSelected((prev) => {
       const next = new Map(prev)
-      next.delete(uid)
+      next.delete(id)
       return next
     })
   }
@@ -97,7 +98,7 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
       await invite.mutateAsync([...selected.keys()])
       handleClose()
     } catch {
-      // toast hiện bởi MutationCache.onError trong QueryProvider
+      // toast shown by MutationCache.onError in QueryProvider
     }
   }
 
@@ -123,7 +124,7 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm theo tên, email hoặc số điện thoại..."
+              placeholder="Tìm theo tên hoặc email..."
               autoFocus
               className={cn(
                 'w-full bg-zinc-800 border border-zinc-700 rounded-md pl-8 pr-8 py-2',
@@ -164,10 +165,10 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
             </div>
           )}
           {results.map((user) => {
-            const isSelected = selected.has(user.uid)
+            const isSelected = selected.has(user.id)
             return (
               <button
-                key={user.uid}
+                key={user.id}
                 onClick={() => toggleSelect(user)}
                 className={cn(
                   'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
@@ -183,11 +184,11 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
                     {user.displayName || '(Chưa đặt tên)'}
                   </p>
                   <p className="text-[11px] text-zinc-500 mt-0.5 truncate">
-                    {[user.email, user.phone].filter(Boolean).join(' · ')}
+                    {user.gender === 'male' ? 'Nam' : user.gender === 'female' ? 'Nữ' : ''}
                   </p>
                 </div>
                 <div className={cn(
-                  'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                  'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
                   isSelected
                     ? 'bg-orange-500 border-orange-500'
                     : 'border-zinc-600',
@@ -208,12 +209,12 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
             <div className="flex flex-wrap gap-1.5">
               {selectedList.map((user) => (
                 <span
-                  key={user.uid}
+                  key={user.id}
                   className="flex items-center gap-1 px-2 py-1 bg-zinc-800 rounded-full text-[12px] text-zinc-200"
                 >
-                  {user.displayName || user.uid.slice(0, 6)}
+                  {user.displayName || user.id.slice(0, 6)}
                   <button
-                    onClick={() => removeSelected(user.uid)}
+                    onClick={() => removeSelected(user.id)}
                     className="text-zinc-500 hover:text-zinc-300 transition-colors ml-0.5"
                   >
                     <X className="w-3 h-3" />

@@ -3,14 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Settings, FileText, UserCheck,
   MapPin, CreditCard, Users, ListOrdered,
   GitFork, CalendarDays, Radio, ChevronDown,
 } from 'lucide-react'
-import { getClientDb } from '@/lib/firebase/client'
+import { api } from '@/lib/api/client'
 import type { TournamentStatus } from '@/lib/types/tournament'
 import { useTournament } from './tournament-context'
 import { useCurrentUser } from '@/lib/auth/auth-provider'
@@ -44,18 +43,19 @@ export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
   const [refereeCount, setRefereeCount] = useState<number | undefined>(undefined)
 
   useEffect(() => {
-    const db = getClientDb()
-    const unsubCourts = onSnapshot(
-      collection(db, `tournaments/${tournamentId}/courts`),
-      (snap) => setCourtCount(snap.size),
-      () => setCourtCount(undefined),
-    )
-    const unsubRoles = onSnapshot(
-      query(collection(db, `tournaments/${tournamentId}/roles`), where('role', '==', 'referee')),
-      (snap) => setRefereeCount(snap.size),
-      () => setRefereeCount(undefined),
-    )
-    return () => { unsubCourts(); unsubRoles() }
+    // Fetch court and referee counts once on mount via REST.
+    // TODO: subscribe to Socket.IO room tournament:{tid} for live badge updates (Phase 5+).
+    let cancelled = false
+
+    api.get<{ courts: unknown[] }>(`/tournaments/${tournamentId}/courts`)
+      .then((res) => { if (!cancelled) setCourtCount(res.courts?.length ?? 0) })
+      .catch(() => { if (!cancelled) setCourtCount(undefined) })
+
+    api.get<{ referees: unknown[] }>(`/tournaments/${tournamentId}/referees`)
+      .then((res) => { if (!cancelled) setRefereeCount(res.referees?.length ?? 0) })
+      .catch(() => { if (!cancelled) setRefereeCount(undefined) })
+
+    return () => { cancelled = true }
   }, [tournamentId])
 
   const sections: NavSection[] = [

@@ -35,7 +35,8 @@ function Forbidden() {
   )
 }
 
-// Guard client: chưa đăng nhập → /login; sai quyền → màn 403. roles rỗng = chỉ cần đăng nhập.
+// Guard client: chưa đăng nhập → /login; sai quyền → màn 403.
+// roles rỗng = chỉ cần đăng nhập (bất kỳ globalRole).
 export function RequireAuth({
   roles,
   children,

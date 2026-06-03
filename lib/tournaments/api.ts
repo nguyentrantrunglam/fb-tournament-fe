@@ -1,12 +1,11 @@
-import { httpsCallable } from 'firebase/functions'
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { getClientFunctions, getClientDb, getClientStorage } from '@/lib/firebase/client'
+import { api } from '@/lib/api/client'
 import type { TournamentStatus, TournamentSponsor } from '@/lib/types/tournament'
 import type { CategoryWithStats, GenderRequirement, CategoryFormat } from '@/lib/types/category'
 import type { RegistrationRow, CategoryFilterOption, RegistrationStatus, RegistrationPaymentStatus } from '@/lib/types/registration'
 import type { CreateTournamentFormData } from '@/lib/validators/create-tournament'
 import type { CreateCategoryInput } from '@/lib/validators/category'
+
+// ─── Response types ────────────────────────────────────────────────────────────
 
 export type MyTournament = {
   id: string
@@ -22,7 +21,6 @@ export type MyTournament = {
   createdAt: number | null
 }
 
-// Dữ liệu giải dùng cho chrome/khu BTC (đọc client theo rule owner/public)
 export type TournamentDoc = {
   id: string
   name: string
@@ -37,7 +35,8 @@ export type TournamentDoc = {
   bannerUrl: string | null
   logoUrl: string | null
   isPublic: boolean
-  ownerUid: string
+  // ownerUserId replaces ownerUid — callers that need to check ownership use this field
+  ownerUserId: string
 }
 
 export type UpdateTournamentPatch = Partial<{
@@ -54,48 +53,178 @@ export type UpdateTournamentPatch = Partial<{
   isPublic: boolean
 }>
 
-// ─── Callables ────────────────────────────────────────────────────────────────
+// Raw shape from GET /tournaments/:tid (safeTournament in service)
+type ApiTournamentDoc = {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  status: TournamentStatus
+  startDate: string
+  endDate: string
+  location: string
+  rulesText?: string | null
+  sponsors?: TournamentSponsor[]
+  bannerUrl?: string | null
+  logoUrl?: string | null
+  isPublic: boolean
+  ownerUserId: string
+  paymentConfig?: unknown
+  createdAt?: string
+}
+
+function mapApiTournament(t: ApiTournamentDoc): TournamentDoc {
+  return {
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    description: t.description ?? '',
+    status: t.status,
+    startDate: t.startDate ?? '',
+    endDate: t.endDate ?? '',
+    location: t.location ?? '',
+    rulesText: t.rulesText ?? null,
+    sponsors: t.sponsors ?? [],
+    bannerUrl: t.bannerUrl ?? null,
+    logoUrl: t.logoUrl ?? null,
+    isPublic: t.isPublic,
+    ownerUserId: t.ownerUserId ?? '',
+  }
+}
+
+// ─── Tournament mutations ──────────────────────────────────────────────────────
 
 export async function createTournament(data: CreateTournamentFormData): Promise<{ id: string; slug: string }> {
-  const fn = httpsCallable<CreateTournamentFormData, { id: string; slug: string }>(getClientFunctions(), 'createTournament')
-  return (await fn(data)).data
-}
-
-export async function listMyTournaments(): Promise<MyTournament[]> {
-  const fn = httpsCallable<unknown, { tournaments: MyTournament[] }>(getClientFunctions(), 'listMyTournaments')
-  return (await fn({})).data.tournaments
-}
-
-export async function createCategory(tournamentId: string, data: CreateCategoryInput): Promise<{ id: string }> {
-  const fn = httpsCallable<unknown, { id: string }>(getClientFunctions(), 'createCategory')
-  return (await fn({ tournamentId, ...data })).data
-}
-
-export async function updateCategory(tournamentId: string, categoryId: string, data: CreateCategoryInput): Promise<void> {
-  const fn = httpsCallable(getClientFunctions(), 'updateCategory')
-  await fn({ tournamentId, categoryId, ...data })
+  return api.post<{ id: string; slug: string }>('/tournaments', data)
 }
 
 export async function updateTournament(id: string, patch: UpdateTournamentPatch): Promise<void> {
-  const fn = httpsCallable(getClientFunctions(), 'updateTournament')
-  await fn({ id, ...patch })
+  // Filter out null values for exactOptionalPropertyTypes compliance — omit, don't send undefined
+  const body: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(patch)) {
+    if (v !== undefined) body[k] = v
+  }
+  await api.patch<TournamentDoc>(`/tournaments/${id}`, body)
 }
 
-// Upload ảnh giải lên Storage → trả downloadURL (lưu vào doc qua updateTournament)
+// ─── Tournament queries ────────────────────────────────────────────────────────
+
+export async function listMyTournaments(): Promise<MyTournament[]> {
+  const res = await api.get<{ tournaments: ApiTournamentDoc[] }>('/tournaments/mine')
+  return res.tournaments.map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    status: t.status,
+    startDate: t.startDate ?? null,
+    endDate: t.endDate ?? null,
+    location: t.location ?? '',
+    bannerUrl: t.bannerUrl ?? null,
+    logoUrl: t.logoUrl ?? null,
+    isOwner: true, // listMine only returns tournaments the caller owns or has a role on
+    createdAt: t.createdAt ? new Date(t.createdAt).getTime() : null,
+  }))
+}
+
+export async function fetchTournament(id: string): Promise<TournamentDoc | null> {
+  try {
+    const t = await api.get<ApiTournamentDoc>(`/tournaments/${id}`)
+    return mapApiTournament(t)
+  } catch {
+    return null
+  }
+}
+
+// ─── Category mutations ────────────────────────────────────────────────────────
+
+export async function createCategory(tournamentId: string, data: CreateCategoryInput): Promise<{ id: string }> {
+  return api.post<{ id: string }>(`/tournaments/${tournamentId}/categories`, data)
+}
+
+export async function updateCategory(tournamentId: string, categoryId: string, data: CreateCategoryInput): Promise<void> {
+  // /categories/:cid — tid not needed by api (CategoryTournamentRoleGuard resolves it)
+  void tournamentId
+  await api.patch<unknown>(`/categories/${categoryId}`, data)
+}
+
+// ─── Category queries ──────────────────────────────────────────────────────────
+
+export async function fetchCategories(tid: string): Promise<CategoryWithStats[]> {
+  const res = await api.get<{ categories: Record<string, unknown>[] }>(`/tournaments/${tid}/categories`)
+  return (res.categories ?? []).map((c) => ({
+    id: (c['id'] as string) ?? '',
+    tournamentId: tid,
+    code: (c['code'] as string) ?? '',
+    name: (c['name'] as string) ?? '',
+    playerCount: ((c['playerCount'] as 1 | 2) ?? 1),
+    genderRequirement: ((c['genderRequirement'] as GenderRequirement) ?? 'unrestricted'),
+    format: ((c['format'] as CategoryFormat) ?? 'single_elim'),
+    bestOf: ((c['bestOf'] as 1 | 3 | 5) ?? 3),
+    fee: (c['fee'] as number) ?? 0,
+    maxTeams: (c['maxTeams'] as number) ?? 0,
+    registrationDeadline: (c['registrationDeadline'] as string) ?? '',
+    registrationStatus: (c['registrationStatus'] as CategoryWithStats['registrationStatus']) ?? 'not_open',
+    slotFilled: (c['slotFilled'] as number) ?? 0,
+    slotApproved: (c['slotApproved'] as number) ?? 0,
+    slotPaid: (c['slotPaid'] as number) ?? 0,
+    byeCount: (c['byeCount'] as number) ?? 0,
+    currentRound: c['currentRound'] != null ? String(c['currentRound']) : null,
+  }))
+}
+
+// ─── Storage upload (presign → PUT → publicUrl) ────────────────────────────────
+
 export async function uploadTournamentImage(
   tid: string,
   kind: 'banner' | 'logo' | 'sponsor',
   file: File,
 ): Promise<string> {
-  const path = `tournaments/${tid}/${kind}-${Date.now()}-${file.name.replace(/[^\w.-]/g, '_')}`
-  const r = storageRef(getClientStorage(), path)
-  await uploadBytes(r, file)
-  return getDownloadURL(r)
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  const key = `tournaments/${tid}/${kind}-${Date.now()}.${ext}`
+  const contentType = file.type || 'image/jpeg'
+
+  const { uploadUrl, publicUrl } = await api.post<{ uploadUrl: string; publicUrl: string }>(
+    '/storage/presign',
+    { key, contentType },
+  )
+
+  // PUT directly to DigitalOcean Spaces (no auth header — presigned URL is self-authenticating)
+  const putRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,
+  })
+  if (!putRes.ok) {
+    throw new Error(`Upload thất bại: ${putRes.status} ${putRes.statusText}`)
+  }
+
+  return publicUrl
 }
 
-// ─── Client reads (rule: owner/public) ────────────────────────────────────────
+// ─── Registration queries (BTC panel) ─────────────────────────────────────────
 
-// Map raw Firestore tournament doc → TournamentDoc (dùng chung fetch + context)
+export async function fetchCategoryFilterOptions(tid: string): Promise<CategoryFilterOption[]> {
+  try {
+    const res = await api.get<{ categories: Array<{ id: string; code: string; name: string }> }>(
+      `/tournaments/${tid}/categories`,
+    )
+    return (res.categories ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))
+  } catch {
+    return []
+  }
+}
+
+export async function fetchRegistrations(tid: string): Promise<RegistrationRow[]> {
+  // TODO: GET /tournaments/:tid/registrations endpoint not yet implemented (Phase 4).
+  // Returns empty array so the registrations page renders without crashing.
+  void tid
+  return []
+}
+
+// ─── Kept for compatibility ────────────────────────────────────────────────────
+
+// Kept for compatibility with tournament-context.tsx which still calls mapTournamentDoc
+// during the transition. Remove when tournament-context is refactored to REST polling.
 export function mapTournamentDoc(id: string, t: Record<string, unknown>): TournamentDoc {
   return {
     id,
@@ -111,64 +240,6 @@ export function mapTournamentDoc(id: string, t: Record<string, unknown>): Tourna
     bannerUrl: (t['bannerUrl'] as string | null) ?? null,
     logoUrl: (t['logoUrl'] as string | null) ?? null,
     isPublic: (t['isPublic'] as boolean) ?? false,
-    ownerUid: (t['ownerUid'] as string) ?? '',
+    ownerUserId: (t['ownerUserId'] as string) ?? (t['ownerUid'] as string) ?? '',
   }
-}
-
-export async function fetchTournament(id: string): Promise<TournamentDoc | null> {
-  const snap = await getDoc(doc(getClientDb(), 'tournaments', id))
-  if (!snap.exists()) return null
-  return mapTournamentDoc(snap.id, snap.data())
-}
-
-export async function fetchCategories(tid: string): Promise<CategoryWithStats[]> {
-  const snap = await getDocs(collection(getClientDb(), `tournaments/${tid}/categories`))
-  return snap.docs.map((d) => {
-    const c = d.data()
-    return {
-      id: d.id,
-      tournamentId: tid,
-      code: c['code'] ?? '',
-      name: c['name'] ?? '',
-      playerCount: (c['playerCount'] ?? 1) as 1 | 2,
-      genderRequirement: (c['genderRequirement'] ?? 'unrestricted') as GenderRequirement,
-      format: (c['format'] ?? 'single_elim') as CategoryFormat,
-      bestOf: (c['bestOf'] ?? 3) as 1 | 3 | 5,
-      fee: c['fee'] ?? 0,
-      maxTeams: c['maxTeams'] ?? 0,
-      registrationDeadline: c['registrationDeadline'] ?? '',
-      registrationStatus: c['registrationStatus'] ?? 'not_open',
-      // Stats denormalized — tính từ registrations/matches ở phase sau
-      slotFilled: c['slotFilled'] ?? 0,
-      slotApproved: c['slotApproved'] ?? 0,
-      slotPaid: c['slotPaid'] ?? 0,
-      byeCount: c['byeCount'] ?? 0,
-      currentRound: c['currentRound'] ?? null,
-    }
-  })
-}
-
-export async function fetchCategoryFilterOptions(tid: string): Promise<CategoryFilterOption[]> {
-  const snap = await getDocs(collection(getClientDb(), `tournaments/${tid}/categories`))
-  return snap.docs.map((d) => ({ id: d.id, code: d.data()['code'] ?? '', name: d.data()['name'] ?? '' }))
-}
-
-export async function fetchRegistrations(tid: string): Promise<RegistrationRow[]> {
-  const snap = await getDocs(collection(getClientDb(), `tournaments/${tid}/registrations`))
-  return snap.docs.map((d) => {
-    const r = d.data()
-    return {
-      id: d.id,
-      athleteName: r['athleteName'] ?? '',
-      cccdLast4: r['cccdLast4'] ?? '',
-      phoneMasked: r['phoneMasked'] ?? '',
-      partnerName: r['partnerName'] ?? null,
-      categoryId: r['categoryId'] ?? '',
-      categoryCode: r['categoryCode'] ?? '',
-      fee: r['fee'] ?? 0,
-      paymentStatus: (r['paymentStatus'] ?? 'unpaid') as RegistrationPaymentStatus,
-      registeredAt: r['registeredAt'] ?? '',
-      status: (r['status'] ?? 'pending') as RegistrationStatus,
-    }
-  })
 }

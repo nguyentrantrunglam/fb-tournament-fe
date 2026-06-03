@@ -1,4 +1,4 @@
-import { getClientAuth } from '@/lib/firebase/client'
+import { api } from '@/lib/api/client'
 import type { PaymentConfig } from '@/lib/types/payment'
 import type { CategoryFeeItem, CategoryRegistrationStatus } from '@/lib/types/category'
 
@@ -7,25 +7,12 @@ export type FeesData = {
   categories: CategoryFeeItem[]
 }
 
-async function getToken(): Promise<string> {
-  const user = getClientAuth().currentUser
-  if (!user) throw new Error('Chưa đăng nhập')
-  return user.getIdToken()
-}
-
-async function feesApi(tid: string, method: string, body?: object): Promise<Response> {
-  const token = await getToken()
-  return fetch(`/api/tournaments/${tid}/fees`, {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  })
-}
-
 export async function fetchFeesData(tid: string): Promise<FeesData> {
-  const res = await feesApi(tid, 'GET')
-  if (!res.ok) return { paymentConfig: null, categories: [] }
-  return (await res.json()) as FeesData
+  try {
+    return await api.get<FeesData>(`/tournaments/${tid}/fees`)
+  } catch {
+    return { paymentConfig: null, categories: [] }
+  }
 }
 
 export async function saveFees(
@@ -33,21 +20,21 @@ export async function saveFees(
   paymentConfig: PaymentConfig,
   categoryFees: { id: string; fee: number }[],
 ): Promise<void> {
-  const res = await feesApi(tid, 'PUT', { paymentConfig, categoryFees })
-  if (!res.ok) {
-    const data = (await res.json()) as { error?: string }
-    throw new Error(data.error ?? 'Không thể lưu cấu hình')
-  }
+  await api.patch<{ ok: boolean }>(`/tournaments/${tid}/fees`, { paymentConfig, categoryFees })
 }
 
+// Toggle registration status for a single category.
+// API uses separate POST endpoints: /categories/:cid/registration/{open,close,reopen}
 export async function toggleRegistration(
   tid: string,
   categoryId: string,
   registrationStatus: CategoryRegistrationStatus,
 ): Promise<void> {
-  const res = await feesApi(tid, 'PATCH', { categoryId, registrationStatus })
-  if (!res.ok) {
-    const data = (await res.json()) as { error?: string }
-    throw new Error(data.error ?? 'Không thể thay đổi trạng thái đăng ký')
-  }
+  void tid // tid not needed — api resolves tournament from categoryId
+  const action = registrationStatus === 'open'
+    ? 'open'
+    : registrationStatus === 'closed'
+      ? 'close'
+      : 'reopen'
+  await api.post<{ ok: boolean }>(`/categories/${categoryId}/registration/${action}`)
 }

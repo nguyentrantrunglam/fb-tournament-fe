@@ -1,35 +1,36 @@
-import { httpsCallable } from 'firebase/functions'
-import { getClientFunctions } from '@/lib/firebase/client'
+import { api } from '@/lib/api/client'
 import type { GlobalRole } from './roles'
 
+// Shape returned by GET /admin/users (SafeUser without identity)
 export type AdminUser = {
-  uid: string
-  email: string | null
+  id: string
+  email: string
   displayName: string
   gender: 'male' | 'female' | null
   dob: string | null
   globalRole: GlobalRole
-  disabled: boolean
-  createdAt: number | null
+  createdAt: string | null
 }
 
 export async function adminListUsers(): Promise<AdminUser[]> {
-  const fn = httpsCallable<unknown, { users: AdminUser[] }>(getClientFunctions(), 'adminListUsers')
-  const res = await fn({})
-  return res.data.users
+  const res = await api.get<{ users: AdminUser[]; total: number }>('/admin/users?limit=200')
+  return res.users
 }
 
-export async function adminSetGlobalRole(uid: string, role: GlobalRole): Promise<void> {
-  const fn = httpsCallable(getClientFunctions(), 'adminSetGlobalRole')
-  await fn({ uid, role })
+export async function adminSetGlobalRole(id: string, role: GlobalRole): Promise<void> {
+  await api.patch<AdminUser>(`/admin/users/${id}/role`, { role })
 }
 
-export async function adminUpdateUser(uid: string, data: { displayName: string; phone?: string | undefined }): Promise<void> {
-  const fn = httpsCallable(getClientFunctions(), 'adminUpdateUser')
-  await fn({ uid, ...data })
+// Admin profile-edit + delete-user endpoints aren't in the NestJS api yet (the old
+// Firebase build had them). Fail VISIBLY instead of silently pretending success, so
+// the UI surfaces an error rather than lying that it saved. Restore by adding
+// PATCH /admin/users/:id and DELETE /admin/users/:id to the api, then wiring here.
+const NOT_AVAILABLE = 'Tính năng này đang được hoàn thiện trên hệ thống mới.'
+
+export async function adminUpdateUser(_id: string, _data: { displayName: string; phone?: string }): Promise<void> {
+  throw new Error(NOT_AVAILABLE)
 }
 
-export async function adminDeleteUser(uid: string): Promise<void> {
-  const fn = httpsCallable(getClientFunctions(), 'adminDeleteUser')
-  await fn({ uid })
+export async function adminDeleteUser(_id: string): Promise<void> {
+  throw new Error(NOT_AVAILABLE)
 }

@@ -14,7 +14,7 @@ const inputCls = cn(
 type Props = {
   user: AdminUser | null
   onOpenChange: (open: boolean) => void
-  onSaved: (uid: string, displayName: string) => void
+  onSaved: (id: string, displayName: string) => void
 }
 
 export function EditUserDialog({ user, onOpenChange, onSaved }: Props) {
@@ -24,9 +24,9 @@ export function EditUserDialog({ user, onOpenChange, onSaved }: Props) {
   const [err, setErr] = useState<string | null>(null)
 
   // Reset khi đổi user (adjust-state-during-render)
-  const [prevUid, setPrevUid] = useState<string | null>(null)
-  if (user && user.uid !== prevUid) {
-    setPrevUid(user.uid)
+  const [prevId, setPrevId] = useState<string | null>(null)
+  if (user && user.id !== prevId) {
+    setPrevId(user.id)
     setDisplayName(user.displayName)
     setPhone('')
     setErr(null)
@@ -39,8 +39,10 @@ export function EditUserDialog({ user, onOpenChange, onSaved }: Props) {
     setSaving(true)
     setErr(null)
     try {
-      await adminUpdateUser(user.uid, { displayName: displayName.trim(), phone: phone || undefined })
-      onSaved(user.uid, displayName.trim())
+      const updateData: { displayName: string; phone?: string } = { displayName: displayName.trim() }
+      if (phone) updateData.phone = phone
+      await adminUpdateUser(user.id, updateData)
+      onSaved(user.id, displayName.trim())
       onOpenChange(false)
     } catch (e) {
       setErr(authErrorMessage(e))

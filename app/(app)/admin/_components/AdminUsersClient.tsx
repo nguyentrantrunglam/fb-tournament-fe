@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Shield, ArrowLeft, LogOut, Search, Pencil, Trash2, Loader2, ChevronDown } from 'lucide-react'
+import { Shield, ArrowLeft, LogOut, Search, Pencil, Loader2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCurrentUser } from '@/lib/auth/auth-provider'
 import { signOut } from '@/lib/auth/client'
 import { authErrorMessage } from '@/lib/auth/auth-error'
-import { adminListUsers, adminSetGlobalRole, adminDeleteUser, type AdminUser } from '@/lib/auth/admin-api'
+import { adminListUsers, adminSetGlobalRole, type AdminUser } from '@/lib/auth/admin-api'
+import { ROLE_LABEL } from '@/lib/auth/roles'
 import { EditUserDialog } from './EditUserDialog'
 
 const AVATAR = ['bg-amber-700 text-amber-100', 'bg-teal-700 text-teal-100', 'bg-blue-800 text-blue-100', 'bg-violet-800 text-violet-100', 'bg-rose-800 text-rose-100']
@@ -28,8 +29,7 @@ export function AdminUsersClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [busyUid, setBusyUid] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<AdminUser | null>(null)
 
   useEffect(() => {
@@ -47,27 +47,14 @@ export function AdminUsersClient() {
 
   async function changeRole(u: AdminUser, role: AdminUser['globalRole']) {
     if (role === u.globalRole) return
-    setBusyUid(u.uid)
+    setBusyId(u.id)
     try {
-      await adminSetGlobalRole(u.uid, role)
-      setUsers((prev) => prev.map((x) => (x.uid === u.uid ? { ...x, globalRole: role } : x)))
+      await adminSetGlobalRole(u.id, role)
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, globalRole: role } : x)))
     } catch (e) {
       setError(authErrorMessage(e))
     } finally {
-      setBusyUid(null)
-    }
-  }
-
-  async function doDelete(uid: string) {
-    setBusyUid(uid)
-    setConfirmDelete(null)
-    try {
-      await adminDeleteUser(uid)
-      setUsers((prev) => prev.filter((x) => x.uid !== uid))
-    } catch (e) {
-      setError(authErrorMessage(e))
-    } finally {
-      setBusyUid(null)
+      setBusyId(null)
     }
   }
 
@@ -130,13 +117,13 @@ export function AdminUsersClient() {
               </thead>
               <tbody>
                 {rows.map((u) => {
-                  const isMe = u.uid === me?.uid
-                  const busy = busyUid === u.uid
+                  const isMe = u.id === me?.id
+                  const busy = busyId === u.id
                   return (
-                    <tr key={u.uid} className="border-b border-zinc-800/70 hover:bg-zinc-900/40 transition-colors">
+                    <tr key={u.id} className="border-b border-zinc-800/70 hover:bg-zinc-900/40 transition-colors">
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-3">
-                          <span className={cn('w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0', avatarColor(u.uid))}>
+                          <span className={cn('w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0', avatarColor(u.id))}>
                             {initials(u.displayName, u.email)}
                           </span>
                           <div className="min-w-0">
@@ -155,14 +142,14 @@ export function AdminUsersClient() {
                               'appearance-none rounded-full pl-2.5 pr-7 py-1 text-[12px] font-medium border cursor-pointer disabled:cursor-not-allowed',
                               u.globalRole === 'admin'
                                 ? 'text-orange-300 bg-orange-950 border-orange-900/60'
-                                : u.globalRole === 'organizer'
+                                : u.globalRole === 'organizer_capable'
                                 ? 'text-blue-300 bg-blue-950 border-blue-900/60'
                                 : 'text-zinc-300 bg-zinc-800 border-zinc-700',
                             )}
                           >
-                            <option value="user">Người dùng</option>
-                            <option value="organizer">Tổ chức</option>
-                            <option value="admin">Admin</option>
+                            <option value="athlete">{ROLE_LABEL.athlete}</option>
+                            <option value="organizer_capable">{ROLE_LABEL.organizer_capable}</option>
+                            <option value="admin">{ROLE_LABEL.admin}</option>
                           </select>
                           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
                         </div>
@@ -173,24 +160,10 @@ export function AdminUsersClient() {
                       <td className="py-2.5 px-4 text-right">
                         {busy ? (
                           <Loader2 className="w-4 h-4 animate-spin text-zinc-500 inline" />
-                        ) : confirmDelete === u.uid ? (
-                          <span className="inline-flex items-center gap-2 text-[12px]">
-                            <span className="text-zinc-400">Xoá?</span>
-                            <button onClick={() => doDelete(u.uid)} className="text-red-400 hover:text-red-300 font-medium">Có</button>
-                            <button onClick={() => setConfirmDelete(null)} className="text-zinc-500 hover:text-zinc-300">Không</button>
-                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1">
                             <button onClick={() => setEditing(u)} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-md transition-colors" title="Sửa">
                               <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(u.uid)}
-                              disabled={isMe}
-                              className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
-                              title={isMe ? 'Không thể xoá chính mình' : 'Xoá'}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </span>
                         )}
@@ -210,7 +183,7 @@ export function AdminUsersClient() {
       <EditUserDialog
         user={editing}
         onOpenChange={(o) => !o && setEditing(null)}
-        onSaved={(uid, displayName) => setUsers((prev) => prev.map((x) => (x.uid === uid ? { ...x, displayName } : x)))}
+        onSaved={(id, displayName) => setUsers((prev) => prev.map((x) => (x.id === id ? { ...x, displayName } : x)))}
       />
     </div>
   )

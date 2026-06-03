@@ -15,3 +15,5 @@ build/
 *.zip
 
 .next/
+# local env (secrets)
+.env*.local

@@ -2,10 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { doc, onSnapshot } from 'firebase/firestore'
 import { Loader2, AlertTriangle } from 'lucide-react'
-import { getClientDb } from '@/lib/firebase/client'
-import { mapTournamentDoc, type TournamentDoc } from '@/lib/tournaments/api'
+import { fetchTournament, type TournamentDoc } from '@/lib/tournaments/api'
 
 const TournamentContext = createContext<TournamentDoc | null>(null)
 
@@ -31,20 +29,25 @@ export function TournamentProvider({
   const [state, setState] = useState<'loading' | 'ok' | 'notfound' | 'error'>('loading')
 
   useEffect(() => {
-    const ref = doc(getClientDb(), 'tournaments', tournamentId)
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (!snap.exists()) {
+    let cancelled = false
+
+    fetchTournament(tournamentId)
+      .then((doc) => {
+        if (cancelled) return
+        if (!doc) {
           setState('notfound')
-          return
+        } else {
+          setTournament(doc)
+          setState('ok')
         }
-        setTournament(mapTournamentDoc(snap.id, snap.data()))
-        setState('ok')
-      },
-      () => setState('error'), // permission-denied (không phải owner) hoặc lỗi mạng
-    )
-    return () => unsub()
+      })
+      .catch(() => {
+        if (!cancelled) setState('error')
+      })
+
+    // TODO: replace one-shot fetch with Socket.IO room subscription for live updates
+    // when the realtime gateway is integrated (Phase 5+). For now poll on mount.
+    return () => { cancelled = true }
   }, [tournamentId])
 
   if (state === 'loading') {

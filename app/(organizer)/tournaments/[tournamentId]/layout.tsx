@@ -13,7 +13,7 @@ export default async function TournamentLayout({
   const { tournamentId } = await params
 
   return (
-    <RequireAuth roles={['organizer', 'admin']}>
+    <RequireAuth roles={['organizer_capable', 'admin']}>
       <TournamentProvider tournamentId={tournamentId}>
         <div className="flex h-screen overflow-hidden bg-zinc-950 text-white">
           <TournamentSidebar tournamentId={tournamentId} />

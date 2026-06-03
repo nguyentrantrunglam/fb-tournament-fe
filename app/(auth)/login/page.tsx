@@ -8,9 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { loginSchema, type LoginFormData } from '@/lib/validators/login'
-import { signInEmail, signInGoogle, landingForUser } from '@/lib/auth/client'
+import { signInEmail, landingForUser } from '@/lib/auth/client'
 import { authErrorMessage } from '@/lib/auth/auth-error'
-import { authInputCls, AuthHeader, FieldError, SubmitButton, GoogleButton, OrDivider } from '../_components/auth-ui'
+import { authInputCls, AuthHeader, FieldError, SubmitButton } from '../_components/auth-ui'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -28,18 +28,8 @@ export default function LoginPage() {
   async function onSubmit(data: LoginFormData) {
     setAuthError(null)
     try {
-      const cred = await signInEmail(data.email, data.password)
-      router.push(await landingForUser(cred.user))
-    } catch (e) {
-      setAuthError(authErrorMessage(e))
-    }
-  }
-
-  async function handleGoogle() {
-    setAuthError(null)
-    try {
-      const cred = await signInGoogle()
-      router.push(await landingForUser(cred.user))
+      const user = await signInEmail(data.email, data.password)
+      router.push(landingForUser(user))
     } catch (e) {
       setAuthError(authErrorMessage(e))
     }
@@ -89,9 +79,6 @@ export default function LoginPage() {
 
         <SubmitButton disabled={isSubmitting}>{isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}</SubmitButton>
       </form>
-
-      <OrDivider />
-      <GoogleButton onClick={handleGoogle} />
 
       <p className="text-center text-[13px] text-zinc-400 mt-6">
         Chưa có tài khoản?{' '}

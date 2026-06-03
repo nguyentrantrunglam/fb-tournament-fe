@@ -1,63 +1,78 @@
-import { getClientAuth } from '@/lib/firebase/client'
+import { api } from '@/lib/api/client'
 import type { CourtWithState, RefereeOption } from '@/lib/types/court'
 
-async function getToken(): Promise<string> {
-  const user = getClientAuth().currentUser
-  if (!user) throw new Error('Chưa đăng nhập')
-  return user.getIdToken()
+// API court shape uses currentRefereeUserId (was currentRefereeUid in Firebase)
+type ApiCourt = {
+  id: string
+  tournamentId: string
+  name: string
+  status: string
+  currentRefereeUserId: string | null
+  currentMatchId: string | null
 }
 
-async function courtsApi(tid: string, method: string, body?: object): Promise<Response> {
-  const token = await getToken()
-  return fetch(`/api/tournaments/${tid}/courts`, {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  })
+function mapCourt(c: ApiCourt): CourtWithState {
+  return {
+    id: c.id,
+    tournamentId: c.tournamentId,
+    name: c.name,
+    order: 0, // API doesn't return order field yet; placeholder for UI sort
+    status: (c.status as CourtWithState['status']) ?? 'idle',
+    currentRefereeUid: c.currentRefereeUserId,
+    match: null, // match preview populated by operations module (Phase 5+)
+  }
 }
 
-// ─── Queries (qua API route → Admin SDK) ─────────────────────────────────────
+// ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function fetchCourtPageData(
   tid: string,
 ): Promise<{ courts: CourtWithState[]; referees: RefereeOption[] }> {
-  const res = await courtsApi(tid, 'GET')
-  if (!res.ok) return { courts: [], referees: [] }
-  return (await res.json()) as { courts: CourtWithState[]; referees: RefereeOption[] }
-}
+  try {
+    const res = await api.get<{ courts: ApiCourt[] }>(`/tournaments/${tid}/courts`)
+    const courts = (res.courts ?? []).map(mapCourt)
 
-// ─── Mutations (qua API route → Admin SDK) ────────────────────────────────────
+    // Referee list for the picker comes from the referees endpoint
+    const refRes = await api.get<{ referees: Array<{ userId: string; displayName: string; avatarUrl: string | null }> }>(
+      `/tournaments/${tid}/referees`,
+    )
+    const referees: RefereeOption[] = (refRes.referees ?? []).map((r) => ({
+      uid: r.userId,
+      name: r.displayName,
+      tag: buildTag(r.displayName),
+    }))
 
-export async function addCourt(tid: string, name: string, order: number): Promise<string> {
-  const res = await courtsApi(tid, 'POST', { name, order })
-  if (!res.ok) {
-    const data = (await res.json()) as { error?: string }
-    throw new Error(data.error ?? 'Không thể tạo sân')
+    return { courts, referees }
+  } catch {
+    return { courts: [], referees: [] }
   }
-  const data = (await res.json()) as { id: string }
-  return data.id
 }
+
+function buildTag(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length >= 2) return `${words[0]![0]}${words[words.length - 1]![0]}`.toUpperCase()
+  return name.substring(0, 2).toUpperCase()
+}
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+export async function addCourt(tid: string, name: string, _order: number): Promise<string> {
+  const res = await api.post<{ id: string }>(`/tournaments/${tid}/courts`, { name })
+  return res.id
+}
+
+// Court referee-assignment + start-match belong to the operations console, which
+// isn't built on the new api yet. Fail VISIBLY so the UI doesn't pretend it worked.
+const OPS_NOT_AVAILABLE = 'Vận hành sân (gán trọng tài / bắt đầu trận) đang được hoàn thiện.'
 
 export async function assignReferee(
-  tid: string,
-  courtId: string,
-  uid: string | null,
+  _tid: string,
+  _courtId: string,
+  _uid: string | null,
 ): Promise<void> {
-  const res = await courtsApi(tid, 'PATCH', { courtId, currentRefereeUid: uid })
-  if (!res.ok) {
-    const data = (await res.json()) as { error?: string }
-    throw new Error(data.error ?? 'Không thể gán trọng tài')
-  }
+  throw new Error(OPS_NOT_AVAILABLE)
 }
 
-export async function startMatch(tid: string, courtId: string): Promise<void> {
-  const res = await courtsApi(tid, 'PATCH', {
-    courtId,
-    status: 'in_use',
-    match: { gameLabel: 'Game 1', scoreA: 0, scoreB: 0 },
-  })
-  if (!res.ok) {
-    const data = (await res.json()) as { error?: string }
-    throw new Error(data.error ?? 'Không thể bắt đầu trận')
-  }
+export async function startMatch(_tid: string, _courtId: string): Promise<void> {
+  throw new Error(OPS_NOT_AVAILABLE)
 }

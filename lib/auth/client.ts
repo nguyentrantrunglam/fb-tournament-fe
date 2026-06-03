@@ -1,47 +1,37 @@
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  sendPasswordResetEmail,
-  signOut as fbSignOut,
-  type User,
-} from 'firebase/auth'
-import { httpsCallable } from 'firebase/functions'
-import { getClientAuth, getClientFunctions } from '@/lib/firebase/client'
-import { landingPath, type GlobalRole } from './roles'
-import type { ProfileFormData } from '@/lib/validators/signup'
+import { api } from '@/lib/api/client'
+import type { GlobalRole } from './roles'
+import { landingPath } from './roles'
+import type { ApiUser } from './auth-provider'
 
-export async function signInEmail(email: string, password: string) {
-  return signInWithEmailAndPassword(getClientAuth(), email, password)
+// ─── Auth mutations ────────────────────────────────────────────────────────────
+
+export interface RegisterPayload {
+  email: string
+  password: string
+  displayName: string
+  nationalId: string
+  gender: 'male' | 'female'
+  dob: string
+  phone?: string
 }
 
-export async function signUpEmail(email: string, password: string) {
-  return createUserWithEmailAndPassword(getClientAuth(), email, password)
+export async function signInEmail(email: string, password: string): Promise<ApiUser> {
+  return api.post<ApiUser>('/auth/login', { email, password })
 }
 
-export async function signInGoogle() {
-  return signInWithPopup(getClientAuth(), new GoogleAuthProvider())
+export async function signUp(payload: RegisterPayload): Promise<ApiUser> {
+  return api.post<ApiUser>('/auth/register', payload)
 }
 
-export async function sendResetEmail(email: string) {
-  return sendPasswordResetEmail(getClientAuth(), email)
+export async function signOut(): Promise<void> {
+  await api.post<{ ok: boolean }>('/auth/logout')
 }
 
-export async function signOut() {
-  return fbSignOut(getClientAuth())
+export async function sendResetEmail(email: string): Promise<void> {
+  await api.post<{ ok: boolean }>('/auth/forgot-password', { email })
 }
 
-// Đọc globalRole từ ID token claim → trả route đích sau đăng nhập
-export async function landingForUser(user: User): Promise<string> {
-  const token = await user.getIdTokenResult()
-  return landingPath((token.claims['globalRole'] as GlobalRole) ?? 'user')
-}
-
-// Bước 2 signup: CF transaction validate CCCD unique + tạo users/{uid} + private/identity + cccdIndex
-export type CompleteProfilePayload = Omit<ProfileFormData, 'phone'> & { phone?: string }
-
-export async function completeProfile(payload: CompleteProfilePayload) {
-  const fn = httpsCallable(getClientFunctions(), 'completeProfile')
-  return fn(payload)
+// Redirect after login based on globalRole
+export function landingForUser(user: ApiUser): string {
+  return landingPath(user.globalRole as GlobalRole)
 }

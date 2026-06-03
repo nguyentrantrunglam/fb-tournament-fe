@@ -52,7 +52,10 @@ User chose **full rewire off Firebase**. Safe execution order = build all NestJS
 
 **Web (`badminton-web`) committed:** docs pivot `74077f1`; REST/Socket client layer `2b99924`. Auth/feature pages still on Firebase (cutover pending API completeness).
 
-**Remaining (next sessions):** NestJS Fees + Referees modules → coordinated web cutover (auth-provider + all feature data layers Firebase→REST, remove `app/api/*`) → remove Firebase (`functions/`, `lib/firebase`, deps). Bracket/Match/Registration (phases 5-8) not yet built in either stack.
+- ✅ Fees + Referees modules (aggregate fees PATCH atomic; referee list/grant/invite/remove + PII-safe search-users) — `d330382`. **API now covers ALL implemented Firebase features.** e2e 57/57.
+- ✅ Ran api locally (docker mongo RS + pnpm start:dev) + live smoke (register/login/me/authz/tournament+category create) — all green.
+
+**Remaining:** coordinated **web cutover** (auth-provider + all feature data layers + storage uploads Firebase→NestJS REST/Spaces, remove `app/api/*`) → **remove Firebase** (`functions/`, `lib/firebase`, deps) after parity+Spaces+data checks. Bracket/Match/Registration (phases 5-8) not yet built in either stack.
 
 ## Phases
 
