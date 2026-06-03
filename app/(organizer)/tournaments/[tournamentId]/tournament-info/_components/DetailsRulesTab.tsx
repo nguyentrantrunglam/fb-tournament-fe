@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Bold, Italic, Heading, List, Eye, Pencil, Save, FileText, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { updateTournament } from '@/lib/tournaments/api'
+import { useTournamentRefresh } from '../../_components/tournament-context'
 import { authErrorMessage } from '@/lib/auth/auth-error'
 import { RULE_TEMPLATES, templateToMarkdown } from '@/lib/data/rule-templates'
 
@@ -57,6 +58,7 @@ export function DetailsRulesTab({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [tplOpen, setTplOpen] = useState(false)
+  const refresh = useTournamentRefresh()
   const ref = useRef<HTMLTextAreaElement>(null)
   const tplRef = useRef<HTMLDivElement>(null)
 
@@ -83,6 +85,7 @@ export function DetailsRulesTab({
     setErr(null)
     try {
       await updateTournament(tournamentId, { rulesText: text || null })
+      await refresh() // sync context so switching tabs keeps the saved rules
     } catch (e) {
       setErr(authErrorMessage(e))
     } finally {

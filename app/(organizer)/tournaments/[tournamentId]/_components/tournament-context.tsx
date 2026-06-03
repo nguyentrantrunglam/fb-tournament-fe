@@ -1,17 +1,30 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Loader2, AlertTriangle } from 'lucide-react'
 import { fetchTournament, type TournamentDoc } from '@/lib/tournaments/api'
 
-const TournamentContext = createContext<TournamentDoc | null>(null)
+type TournamentCtx = {
+  tournament: TournamentDoc
+  /** Refetch the tournament after a mutation so all tabs see fresh data (no reload). */
+  refresh: () => Promise<void>
+}
+
+const TournamentContext = createContext<TournamentCtx | null>(null)
 
 // Dùng trong các trang/khu BTC — chắc chắn non-null vì Provider chỉ render con khi đã load.
 export function useTournament(): TournamentDoc {
-  const t = useContext(TournamentContext)
-  if (!t) throw new Error('useTournament must be used within TournamentProvider')
-  return t
+  const ctx = useContext(TournamentContext)
+  if (!ctx) throw new Error('useTournament must be used within TournamentProvider')
+  return ctx.tournament
+}
+
+/** Refresh the tournament data in context (call after a successful save). */
+export function useTournamentRefresh(): () => Promise<void> {
+  const ctx = useContext(TournamentContext)
+  if (!ctx) throw new Error('useTournamentRefresh must be used within TournamentProvider')
+  return ctx.refresh
 }
 
 function FullScreen({ children }: { children: React.ReactNode }) {
@@ -28,27 +41,27 @@ export function TournamentProvider({
   const [tournament, setTournament] = useState<TournamentDoc | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'notfound' | 'error'>('loading')
 
-  useEffect(() => {
-    let cancelled = false
-
-    fetchTournament(tournamentId)
-      .then((doc) => {
-        if (cancelled) return
-        if (!doc) {
-          setState('notfound')
-        } else {
-          setTournament(doc)
-          setState('ok')
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setState('error')
-      })
-
-    // TODO: replace one-shot fetch with Socket.IO room subscription for live updates
-    // when the realtime gateway is integrated (Phase 5+). For now poll on mount.
-    return () => { cancelled = true }
+  // Fetch without flipping back to the full-screen loader, so refresh() after a save
+  // updates data in place (children stay mounted; no flicker).
+  const load = useCallback(async () => {
+    try {
+      const doc = await fetchTournament(tournamentId)
+      if (!doc) {
+        setState('notfound')
+        return
+      }
+      setTournament(doc)
+      setState('ok')
+    } catch {
+      setState('error')
+    }
   }, [tournamentId])
+
+  useEffect(() => {
+    void load()
+    // TODO: replace one-shot fetch with Socket.IO room subscription for live updates
+    // when the realtime gateway is integrated (Phase 5+).
+  }, [load])
 
   if (state === 'loading') {
     return (
@@ -76,5 +89,9 @@ export function TournamentProvider({
     )
   }
 
-  return <TournamentContext.Provider value={tournament}>{children}</TournamentContext.Provider>
+  return (
+    <TournamentContext.Provider value={{ tournament, refresh: load }}>
+      {children}
+    </TournamentContext.Provider>
+  )
 }

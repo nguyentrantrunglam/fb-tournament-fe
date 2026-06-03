@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { ImagePlus, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { updateTournament, uploadTournamentImage } from '@/lib/tournaments/api'
+import { useTournamentRefresh } from '../../_components/tournament-context'
 import { authErrorMessage } from '@/lib/auth/auth-error'
 
 function UploadBox({
@@ -101,6 +102,7 @@ export function MediaTab({
   const [logo, setLogo] = useState<string | null>(initialLogo)
   const [busy, setBusy] = useState<'banner' | 'logo' | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const refresh = useTournamentRefresh()
 
   async function pick(kind: 'banner' | 'logo', file: File) {
     setBusy(kind)
@@ -110,6 +112,7 @@ export function MediaTab({
       await updateTournament(tournamentId, kind === 'banner' ? { bannerUrl: url } : { logoUrl: url })
       if (kind === 'banner') setBanner(url)
       else setLogo(url)
+      await refresh() // sync context so other tabs / preview see the new image
     } catch (e) {
       setErr(authErrorMessage(e))
     } finally {
@@ -123,6 +126,7 @@ export function MediaTab({
       await updateTournament(tournamentId, kind === 'banner' ? { bannerUrl: null } : { logoUrl: null })
       if (kind === 'banner') setBanner(null)
       else setLogo(null)
+      await refresh()
     } catch (e) {
       setErr(authErrorMessage(e))
     }

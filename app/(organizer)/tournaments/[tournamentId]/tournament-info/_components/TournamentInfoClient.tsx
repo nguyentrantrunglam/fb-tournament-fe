@@ -10,7 +10,7 @@ import {
   type TournamentInfoFormData,
 } from "@/lib/validators/tournament-info";
 import { PageHeader, PageBody } from "../../_components/PageLayout";
-import { useTournament } from "../../_components/tournament-context";
+import { useTournament, useTournamentRefresh } from "../../_components/tournament-context";
 import { updateTournament } from "@/lib/tournaments/api";
 import { authErrorMessage } from "@/lib/auth/auth-error";
 import { TournamentHeroCard } from "@/components/tournament-hero-card";
@@ -125,6 +125,7 @@ const inputCls = cn(
 // ——— Main component ———
 export function TournamentInfoClient({ categories }: { categories: string[] }) {
   const tournament = useTournament();
+  const refresh = useTournamentRefresh();
   const [activeTab, setActiveTab] = useState<Tab>("Cơ bản");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -172,6 +173,7 @@ export function TournamentInfoClient({ categories }: { categories: string[] }) {
         endDate: data.endDate,
         location: data.location,
       });
+      await refresh(); // sync context so other tabs reflect the saved basics
     } catch (e) {
       setSaveError(authErrorMessage(e));
     } finally {

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { ImagePlus, Plus, X, Link2, Save, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { updateTournament, uploadTournamentImage } from '@/lib/tournaments/api'
+import { useTournamentRefresh } from '../../_components/tournament-context'
 import { authErrorMessage } from '@/lib/auth/auth-error'
 import type { TournamentSponsor, SponsorTier } from '@/lib/types/tournament'
 
@@ -84,6 +85,7 @@ export function SponsorsTab({ tournamentId, initialSponsors }: { tournamentId: s
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const refresh = useTournamentRefresh()
 
   function addSponsor(tier: SponsorTier) {
     setSponsors((prev) => [...prev, { id: crypto.randomUUID(), tier, name: '', logoUrl: null, link: '', description: '' }])
@@ -111,6 +113,7 @@ export function SponsorsTab({ tournamentId, initialSponsors }: { tournamentId: s
     setErr(null)
     try {
       await updateTournament(tournamentId, { sponsors })
+      await refresh() // sync context so other tabs don't revert to stale data
     } catch (e) {
       setErr(authErrorMessage(e))
     } finally {
