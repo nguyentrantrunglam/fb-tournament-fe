@@ -47,7 +47,6 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
   const [results, setResults] = useState<SearchUserResult[]>([])
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState<Map<string, SearchUserResult>>(new Map())
-  const [error, setError] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Debounced search
@@ -72,7 +71,6 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
     setQuery('')
     setResults([])
     setSelected(new Map())
-    setError(null)
     invite.reset()
   }
 
@@ -95,12 +93,11 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
 
   async function handleAdd() {
     if (selected.size === 0) return
-    setError(null)
     try {
       await invite.mutateAsync([...selected.keys()])
       handleClose()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra, thử lại.')
+    } catch {
+      // toast hiện bởi MutationCache.onError trong QueryProvider
     }
   }
 
@@ -225,11 +222,6 @@ export function InviteRefereeDialog({ open, onOpenChange, tournamentId }: Props)
               ))}
             </div>
           </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <p className="mx-5 mb-2 text-[12px] text-red-400">{error}</p>
         )}
 
         {/* Footer */}

@@ -13,6 +13,8 @@ import {
 import { getClientDb } from '@/lib/firebase/client'
 import type { TournamentStatus } from '@/lib/types/tournament'
 import { useTournament } from './tournament-context'
+import { useCurrentUser } from '@/lib/auth/auth-provider'
+import { landingPath } from '@/lib/auth/roles'
 
 const STATUS_CONFIG: Record<TournamentStatus, { label: string; dot: string }> = {
   draft:     { label: 'Bản nháp',      dot: 'bg-zinc-400' },
@@ -34,7 +36,9 @@ type NavSection = { title: string; items: NavItem[] }
 export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
   const pathname = usePathname()
   const tournament = useTournament()
+  const { globalRole } = useCurrentUser()
   const base = `/tournaments/${tournamentId}`
+  const home = landingPath(globalRole)
 
   const [courtCount, setCourtCount] = useState<number | undefined>(undefined)
   const [refereeCount, setRefereeCount] = useState<number | undefined>(undefined)
@@ -99,7 +103,7 @@ export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
   return (
     <aside className="w-[204px] flex-shrink-0 flex flex-col h-screen bg-zinc-900 border-r border-zinc-800 overflow-hidden">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 h-14 border-b border-zinc-800 flex-shrink-0">
+      <Link href={home} className="flex items-center gap-2.5 px-4 h-14 border-b border-zinc-800 flex-shrink-0 hover:bg-zinc-800/50 transition-colors">
         <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center font-bold text-white text-[13px] flex-shrink-0">
           FB
         </div>
@@ -107,7 +111,7 @@ export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
           <p className="text-[13px] font-semibold text-white leading-tight">FB Tournament</p>
           <p className="text-[10px] text-zinc-500 leading-tight">Quản lý giải cầu lông</p>
         </div>
-      </div>
+      </Link>
 
       {/* Tournament selector */}
       <div className="px-2 py-2 border-b border-zinc-800 flex-shrink-0">

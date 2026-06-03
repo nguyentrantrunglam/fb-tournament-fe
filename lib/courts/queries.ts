@@ -21,7 +21,13 @@ export function useAddCourt(tournamentId: string) {
   return useMutation({
     mutationFn: ({ name, order }: { name: string; order: number }) =>
       addCourt(tournamentId, name, order),
-    onSuccess: () => qc.invalidateQueries({ queryKey: courtKeys.page(tournamentId) }),
+    meta: {
+      success: (_data: unknown, vars: unknown) =>
+        `Đã thêm "${(vars as { name: string }).name}"`,
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: courtKeys.page(tournamentId) })
+    },
   })
 }
 
@@ -30,7 +36,7 @@ export function useAssignReferee(tournamentId: string) {
   return useMutation({
     mutationFn: ({ courtId, uid }: { courtId: string; uid: string | null }) =>
       assignReferee(tournamentId, courtId, uid),
-    // Optimistic update: đổi ngay trên cache, rollback nếu lỗi
+    // optimistic — không cần success toast, lỗi đã do MutationCache xử lý
     onMutate: async ({ courtId, uid }) => {
       await qc.cancelQueries({ queryKey: courtKeys.page(tournamentId) })
       const prev = qc.getQueryData<CourtPageData>(courtKeys.page(tournamentId))
@@ -43,6 +49,7 @@ export function useAssignReferee(tournamentId: string) {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(courtKeys.page(tournamentId), ctx.prev)
+      // toast hiện bởi MutationCache.onError
     },
     onSettled: () => qc.invalidateQueries({ queryKey: courtKeys.page(tournamentId) }),
   })
@@ -52,6 +59,7 @@ export function useStartMatch(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (courtId: string) => startMatch(tournamentId, courtId),
+    meta: { success: 'Đã bắt đầu trận' },
     onMutate: async (courtId) => {
       await qc.cancelQueries({ queryKey: courtKeys.page(tournamentId) })
       const prev = qc.getQueryData<CourtPageData>(courtKeys.page(tournamentId))

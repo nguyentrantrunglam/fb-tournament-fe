@@ -17,5 +17,7 @@ export function canManageTournaments(role: GlobalRole | null): boolean {
 
 // Sau đăng nhập điều hướng theo quyền
 export function landingPath(role: GlobalRole | null): string {
-  return role === 'admin' ? '/admin' : '/'
+  if (role === 'admin') return '/admin'
+  if (role === 'organizer') return '/tournaments'
+  return '/'
 }

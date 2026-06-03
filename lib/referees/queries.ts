@@ -18,6 +18,10 @@ export function useBatchInviteReferee(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (uids: string[]) => batchInviteReferees(tournamentId, uids),
+    meta: {
+      success: (_data: unknown, uids: unknown) =>
+        `Đã thêm ${(uids as string[]).length} trọng tài`,
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: refereeKeys.list(tournamentId) })
       qc.invalidateQueries({ queryKey: courtKeys.page(tournamentId) })
