@@ -23,7 +23,7 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   suggestedName: string
-  onAdd: (name: string) => void
+  onAdd: (name: string) => Promise<void>
 }
 
 export function AddCourtDialog({ open, onOpenChange, suggestedName, onAdd }: Props) {
@@ -31,6 +31,7 @@ export function AddCourtDialog({ open, onOpenChange, suggestedName, onAdd }: Pro
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<AddCourtInput>({
     resolver: zodResolver(addCourtSchema) as Resolver<AddCourtInput>,
@@ -47,9 +48,13 @@ export function AddCourtDialog({ open, onOpenChange, suggestedName, onAdd }: Pro
   }
 
   async function onSubmit(data: AddCourtInput) {
-    // TODO: gọi CF createCourt(tournamentId, data.name)
-    onAdd(data.name.trim())
-    handleClose()
+    try {
+      await onAdd(data.name.trim())
+      handleClose()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Không thể tạo sân, thử lại.'
+      setError('name', { message: msg })
+    }
   }
 
   return (

@@ -2,12 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Settings, FileText, UserCheck,
   MapPin, CreditCard, Users, ListOrdered,
   GitFork, CalendarDays, Radio, ChevronDown,
 } from 'lucide-react'
+import { getClientDb } from '@/lib/firebase/client'
 import type { TournamentStatus } from '@/lib/types/tournament'
 import { useTournament } from './tournament-context'
 
@@ -23,18 +26,33 @@ type NavItem = {
   label: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  badge?: number
+  badge?: number | undefined
 }
 
 type NavSection = { title: string; items: NavItem[] }
-
-// Badge counts — thay bằng data thật từ Firestore khi có
-const MOCK_COUNTS = { content: 5, referees: 4, courts: 3, registrations: 72, teams: 65 }
 
 export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
   const pathname = usePathname()
   const tournament = useTournament()
   const base = `/tournaments/${tournamentId}`
+
+  const [courtCount, setCourtCount] = useState<number | undefined>(undefined)
+  const [refereeCount, setRefereeCount] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    const db = getClientDb()
+    const unsubCourts = onSnapshot(
+      collection(db, `tournaments/${tournamentId}/courts`),
+      (snap) => setCourtCount(snap.size),
+      () => setCourtCount(undefined),
+    )
+    const unsubRoles = onSnapshot(
+      query(collection(db, `tournaments/${tournamentId}/roles`), where('role', '==', 'referee')),
+      (snap) => setRefereeCount(snap.size),
+      () => setRefereeCount(undefined),
+    )
+    return () => { unsubCourts(); unsubRoles() }
+  }, [tournamentId])
 
   const sections: NavSection[] = [
     {
@@ -47,17 +65,17 @@ export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
       title: 'S1 · CẤU HÌNH',
       items: [
         { label: 'Thông tin giải',  href: `${base}/tournament-info`, icon: Settings },
-        { label: 'Nội dung',        href: `${base}/content`,         icon: FileText,  badge: MOCK_COUNTS.content },
-        { label: 'Trọng tài',       href: `${base}/referees`,        icon: UserCheck, badge: MOCK_COUNTS.referees },
-        { label: 'Sân thi đấu',     href: `${base}/courts`,          icon: MapPin,    badge: MOCK_COUNTS.courts },
+        { label: 'Nội dung',        href: `${base}/content`,         icon: FileText },
+        { label: 'Trọng tài',       href: `${base}/referees`,        icon: UserCheck, badge: refereeCount },
+        { label: 'Sân thi đấu',     href: `${base}/courts`,          icon: MapPin,    badge: courtCount },
         { label: 'Lệ phí & QR',     href: `${base}/fees`,            icon: CreditCard },
       ],
     },
     {
       title: 'S2 · ĐĂNG KÝ',
       items: [
-        { label: 'Đăng ký',      href: `${base}/registrations`, icon: Users,       badge: MOCK_COUNTS.registrations },
-        { label: 'Danh sách đội', href: `${base}/teams`,         icon: ListOrdered, badge: MOCK_COUNTS.teams },
+        { label: 'Đăng ký',      href: `${base}/registrations`, icon: Users },
+        { label: 'Danh sách đội', href: `${base}/teams`,         icon: ListOrdered },
       ],
     },
     {
@@ -133,7 +151,7 @@ export function TournamentSidebar({ tournamentId }: { tournamentId: string }) {
                 >
                   <item.icon className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge !== undefined && (
+                  {item.badge !== undefined && item.badge > 0 && (
                     <span className="text-[10px] tabular-nums bg-zinc-700/80 text-zinc-300 rounded px-1.5 py-0.5">
                       {item.badge}
                     </span>

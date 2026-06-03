@@ -1,23 +1,22 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Plus, MapPin } from 'lucide-react'
+import { Plus, MapPin, Loader2 } from 'lucide-react'
 import { CourtCard } from './CourtCard'
 import { AddCourtDialog } from './AddCourtDialog'
-import type { CourtWithState, RefereeOption } from '@/lib/types/court'
+import { useCourts, useAddCourt, useAssignReferee, useStartMatch } from '@/lib/courts/queries'
 
-type Props = {
-  courts: CourtWithState[]
-  referees: RefereeOption[]
-  tournamentId: string
-}
+export function CourtBoard({ tournamentId }: { tournamentId: string }) {
+  const { data, isLoading } = useCourts(tournamentId)
+  const courts   = data?.courts   ?? []
+  const referees = data?.referees ?? []
 
-export function CourtBoard({ courts: initialCourts, referees, tournamentId }: Props) {
-  const [courts, setCourts] = useState<CourtWithState[]>(initialCourts)
+  const addMutation    = useAddCourt(tournamentId)
+  const assignMutation = useAssignReferee(tournamentId)
+  const startMutation  = useStartMatch(tournamentId)
+
   const [addOpen, setAddOpen] = useState(false)
 
-  // Trọng tài dùng cho ≥2 sân → cảnh báo trên các sân liên quan.
-  // Map courtId → tên sân khác chia sẻ cùng trọng tài (null nếu không trùng).
   const conflictByCourt = useMemo(() => {
     const map: Record<string, string | null> = {}
     for (const c of courts) {
@@ -29,43 +28,28 @@ export function CourtBoard({ courts: initialCourts, referees, tournamentId }: Pr
     return map
   }, [courts])
 
+  async function handleAddCourt(name: string): Promise<void> {
+    await addMutation.mutateAsync({ name, order: courts.length + 1 })
+  }
+
   function handleAssignReferee(courtId: string, uid: string | null) {
-    // TODO: gọi CF assignRefereeToCourt(courtId, uid)
-    setCourts((prev) =>
-      prev.map((c) => (c.id === courtId ? { ...c, currentRefereeUid: uid } : c)),
-    )
+    assignMutation.mutate({ courtId, uid })
   }
 
   function handleStartMatch(courtId: string) {
-    // TODO: gọi CF startMatch(match.matchId) — đổi court sang in_use
-    setCourts((prev) =>
-      prev.map((c) =>
-        c.id === courtId && c.match
-          ? { ...c, status: 'in_use', match: { ...c.match, gameLabel: 'Game 1', scoreA: 0, scoreB: 0 } }
-          : c,
-      ),
-    )
+    startMutation.mutate(courtId)
   }
 
   function handleOpenMatch(matchId: string) {
-    // Trận đang chạy → trang chấm điểm trọng tài
     window.location.href = `/tournaments/${tournamentId}/live?match=${matchId}`
   }
 
-  function handleAddCourt(name: string) {
-    const order = courts.length + 1
-    setCourts((prev) => [
-      ...prev,
-      {
-        id: `court-new-${order}`,
-        tournamentId,
-        name,
-        order,
-        status: 'idle',
-        currentRefereeUid: null,
-        match: null,
-      },
-    ])
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
+      </div>
+    )
   }
 
   const total = courts.length
@@ -77,7 +61,7 @@ export function CourtBoard({ courts: initialCourts, referees, tournamentId }: Pr
 
   return (
     <div className="flex flex-col h-full">
-      {/* ── Header (cố định) ── */}
+      {/* ── Header ── */}
       <div className="flex-shrink-0 flex items-start justify-between gap-6 px-8 pt-7 pb-4">
         <div>
           <h1 className="text-[22px] font-bold text-white leading-tight">Sân thi đấu</h1>
@@ -92,43 +76,40 @@ export function CourtBoard({ courts: initialCourts, referees, tournamentId }: Pr
         </button>
       </div>
 
-      {/* ── Court grid / empty state (scroll) ── */}
+      {/* ── Court grid / empty state ── */}
       <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-7">
-      {total === 0 ? (
-        <button
-          onClick={() => setAddOpen(true)}
-          className="w-full flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-700 hover:border-zinc-500 py-20 transition-colors group"
-        >
-          <div className="w-12 h-12 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
-            <MapPin className="w-6 h-6 text-zinc-400" />
+        {total === 0 ? (
+          <button
+            onClick={() => setAddOpen(true)}
+            className="w-full flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-700 hover:border-zinc-500 py-20 transition-colors group"
+          >
+            <div className="w-12 h-12 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
+              <MapPin className="w-6 h-6 text-zinc-400" />
+            </div>
+            <div className="text-center">
+              <p className="text-[14px] font-medium text-zinc-300 group-hover:text-white transition-colors">
+                Thêm sân đầu tiên
+              </p>
+              <p className="text-[12px] text-zinc-600 mt-0.5">Vd: Sân 1, Sân 2, Sân 3</p>
+            </div>
+          </button>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {courts.map((court) => (
+              <CourtCard
+                key={court.id}
+                court={court}
+                referees={referees}
+                conflictCourtName={conflictByCourt[court.id] ?? null}
+                onAssignReferee={handleAssignReferee}
+                onStartMatch={handleStartMatch}
+                onOpenMatch={handleOpenMatch}
+              />
+            ))}
           </div>
-          <div className="text-center">
-            <p className="text-[14px] font-medium text-zinc-300 group-hover:text-white transition-colors">
-              Thêm sân đầu tiên
-            </p>
-            <p className="text-[12px] text-zinc-600 mt-0.5">
-              Vd: Sân 1, Sân 2, Sân 3
-            </p>
-          </div>
-        </button>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {courts.map((court) => (
-            <CourtCard
-              key={court.id}
-              court={court}
-              referees={referees}
-              conflictCourtName={conflictByCourt[court.id] ?? null}
-              onAssignReferee={handleAssignReferee}
-              onStartMatch={handleStartMatch}
-              onOpenMatch={handleOpenMatch}
-            />
-          ))}
-        </div>
-      )}
+        )}
       </div>
 
-      {/* ── Add court dialog ── */}
       <AddCourtDialog
         open={addOpen}
         onOpenChange={setAddOpen}

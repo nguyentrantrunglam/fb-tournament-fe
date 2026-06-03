@@ -36,8 +36,16 @@ service cloud.firestore {
       allow write: if false;
 
       match /roles/{uid} {
-        allow read: if request.auth != null && request.auth.uid == uid;
+        // Chính chủ đọc role của mình; owner giải đọc tất cả roles (vd: liệt kê trọng tài).
+        allow read: if request.auth != null
+                    && (request.auth.uid == uid || isTourOwner(tid));
         allow write: if false;
+      }
+
+      // Sân thi đấu: đọc theo quyền đọc giải; owner ghi trực tiếp (thêm/sửa sân, gán trọng tài).
+      match /courts/{courtId} {
+        allow read: if isTourReadable(tid);
+        allow write: if isTourOwner(tid);
       }
 
       // Hạng mục: đọc theo quyền đọc giải; ghi: CF only.
