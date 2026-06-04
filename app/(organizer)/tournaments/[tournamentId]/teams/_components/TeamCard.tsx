@@ -1,7 +1,8 @@
 'use client'
 
-import { ImagePlus, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SeedInput } from '@/components/registration/seed-input'
+import { TeamPhotoUploader } from '@/components/registration/team-photo-uploader'
 import type { TeamEntry } from '@/lib/types/team'
 
 const AVATAR_PALETTE = [
@@ -15,50 +16,18 @@ function avatarColor(seed: string): string {
   return AVATAR_PALETTE[sum % AVATAR_PALETTE.length]!
 }
 
-// Nền sọc chéo cho vùng ảnh chưa upload
-const STRIPE_BG: React.CSSProperties = {
-  backgroundImage:
-    'repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 8px, transparent 8px 16px)',
+type Props = {
+  team: TeamEntry
+  tournamentId: string
 }
 
-export function TeamCard({ team, onUpload }: { team: TeamEntry; onUpload: (id: string) => void }) {
+export function TeamCard({ team, tournamentId }: Props) {
   const names = team.players.map((p) => p.name).join(' / ')
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors">
-      {/* Vùng ảnh đội */}
-      <button
-        onClick={() => onUpload(team.id)}
-        style={STRIPE_BG}
-        className={cn(
-          'relative w-full h-28 flex items-center justify-center group',
-          team.photoUploaded ? 'bg-emerald-950/40' : 'bg-zinc-800/40',
-        )}
-      >
-        {/* Nhãn trạng thái ảnh */}
-        <span
-          className={cn(
-            'absolute top-2.5 left-2.5 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md',
-            team.photoUploaded ? 'text-emerald-300 bg-emerald-950/80' : 'text-zinc-400 bg-zinc-900/70',
-          )}
-        >
-          {team.photoUploaded ? <Check className="w-3 h-3" /> : <ImagePlus className="w-3 h-3" />}
-          {team.photoUploaded ? 'ảnh tự upload' : 'Upload ảnh đội'}
-        </span>
-
-        {/* Seed badge */}
-        <span
-          className={cn(
-            'absolute top-2.5 right-2.5 w-8 h-8 rounded-lg flex items-center justify-center text-[15px] font-bold tabular-nums',
-            team.seed !== null ? 'bg-zinc-950 text-white' : 'bg-zinc-900/70 text-zinc-600',
-          )}
-        >
-          {team.seed ?? '–'}
-        </span>
-      </button>
-
-      {/* Thông tin đội */}
-      <div className="p-3">
+      {/* Player identities */}
+      <div className="p-3 border-b border-zinc-800">
         <div className="flex items-center gap-1.5">
           {team.players.map((p, i) => (
             <span
@@ -73,9 +42,26 @@ export function TeamCard({ team, onUpload }: { team: TeamEntry; onUpload: (id: s
           ))}
         </div>
         <p className="text-[14px] font-semibold text-white mt-2 truncate">{names}</p>
-        <p className={cn('text-[12px] mt-0.5', team.clubName ? 'text-zinc-500' : 'text-zinc-600 italic')}>
-          {team.clubName ?? 'Indep.'}
-        </p>
+      </div>
+
+      {/* Seed + photo controls */}
+      <div className="p-3 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] text-zinc-500 w-10 shrink-0">Seed</span>
+          <SeedInput
+            tournamentId={tournamentId}
+            registrationId={team.id}
+            currentSeed={team.seed}
+          />
+        </div>
+        <div className="flex items-start gap-2">
+          <span className="text-[12px] text-zinc-500 w-10 shrink-0 pt-1.5">Ảnh</span>
+          <TeamPhotoUploader
+            tournamentId={tournamentId}
+            registrationId={team.id}
+            currentPhotoUrl={team.teamPhotoUrl}
+          />
+        </div>
       </div>
     </div>
   )

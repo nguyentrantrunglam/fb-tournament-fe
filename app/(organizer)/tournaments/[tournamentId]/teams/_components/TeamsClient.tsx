@@ -1,85 +1,85 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { Download, Shuffle, RotateCcw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '../../_components/PageLayout'
 import { InfiniteScrollSentinel } from '@/components/infinite-scroll-sentinel'
 import { TeamCard } from './TeamCard'
-import type { CategoryTeams } from '@/lib/types/team'
+import { useTeams, useTeamsRealtime } from '@/lib/teams/queries'
 
 const PAGE_SIZE = 8
 
-export function TeamsClient({ categories }: { categories: CategoryTeams[] }) {
-  const [activeId, setActiveId] = useState(categories.at(-1)?.id ?? categories[0]?.id ?? '')
+export function TeamsClient({ tournamentId }: { tournamentId: string }) {
+  const { data: categories = [], isLoading } = useTeams(tournamentId)
+  useTeamsRealtime(tournamentId)
+
+  const [activeId, setActiveId] = useState<string>('')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
-  // Reset về trang đầu khi đổi tab nội dung (adjust-state-during-render)
-  const [prevActiveId, setPrevActiveId] = useState(activeId)
-  if (prevActiveId !== activeId) {
-    setPrevActiveId(activeId)
+  // Derive the resolved active category (last tab by default once data loads)
+  const resolvedActiveId = activeId || categories.at(-1)?.id || categories[0]?.id || ''
+
+  // Reset pagination when switching tabs (adjust-state-during-render pattern)
+  const [prevActiveId, setPrevActiveId] = useState(resolvedActiveId)
+  if (prevActiveId !== resolvedActiveId) {
+    setPrevActiveId(resolvedActiveId)
     setVisibleCount(PAGE_SIZE)
   }
 
   const active = useMemo(
-    () => categories.find((c) => c.id === activeId) ?? categories[0],
-    [categories, activeId],
+    () => categories.find((c) => c.id === resolvedActiveId) ?? categories[0],
+    [categories, resolvedActiveId],
   )
+
   const loadMore = useCallback(() => setVisibleCount((v) => v + PAGE_SIZE), [])
 
-  if (!active) return null
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-20 text-zinc-500 text-sm">
+        <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách đội…
+      </div>
+    )
+  }
+
+  if (!active) {
+    return (
+      <div className="flex flex-col h-full">
+        <PageHeader
+          title="Danh sách đội"
+          description="Danh sách đội đã duyệt · gán seed & ảnh đội cho từng đội"
+        />
+        <div className="flex items-center justify-center h-40 rounded-xl border border-dashed border-zinc-800 mx-8 text-[13px] text-zinc-600">
+          Chưa có nội dung nào hoặc chưa có đội approved.
+        </div>
+      </div>
+    )
+  }
 
   const unit = active.playerCount === 1 ? 'VĐV' : 'cặp'
-  const unseeded = Math.max(0, active.approvedCount - active.seededCount)
   const visible = active.teams.slice(0, visibleCount)
   const hasMore = visibleCount < active.teams.length
-  const isDrawn = active.drawStatus === 'drawn'
-
-  function handleDraw() {
-    // TODO: gọi CF drawBracket(categoryId)
-  }
-  function handleRedraw() {
-    // TODO: gọi CF redrawBracket(categoryId) — confirm trước (xoá bracket cũ)
-  }
-  function handleUpload(teamId: string) {
-    // TODO: upload ảnh đội → Firebase Storage + set registration.teamPhotoUrl
-    void teamId
-  }
-
-  const actions = (
-    <>
-      <button className="flex items-center gap-1.5 px-3 py-2 text-sm border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 rounded-md transition-colors">
-        <Download className="w-3.5 h-3.5" />
-        Xuất danh sách
-      </button>
-      <button
-        onClick={handleDraw}
-        className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-medium rounded-md transition-colors"
-      >
-        <Shuffle className="w-4 h-4" />
-        Bốc thăm hạng mục này
-      </button>
-    </>
-  )
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Danh sách đội"
-        description="Sau khi đóng đăng ký, gán seed và upload ảnh đội cho công bố public. Bốc thăm khi sẵn sàng."
-        actions={actions}
+        description="Danh sách đội đã duyệt · gán seed & ảnh đội cho từng đội"
       />
 
-      {/* Category tabs (cố định cùng header) */}
-      <div className="flex-shrink-0 px-8">
-        <div className="flex items-center gap-1 border-b border-zinc-800 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+      {/* Category tabs */}
+      <div className="shrink-0 px-8">
+        <div
+          className="flex items-center gap-1 border-b border-zinc-800 overflow-x-auto"
+          style={{ scrollbarWidth: 'none' }}
+        >
           {categories.map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveId(c.id)}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium border-b-2 whitespace-nowrap transition-colors',
-                c.id === activeId
+                c.id === resolvedActiveId
                   ? 'border-orange-500 text-white'
                   : 'border-transparent text-zinc-500 hover:text-zinc-300',
               )}
@@ -103,25 +103,9 @@ export function TeamsClient({ categories }: { categories: CategoryTeams[] }) {
               {active.name} · {active.approvedCount} {unit} đã approved
             </p>
             <p className="text-[12px] text-zinc-500 mt-0.5">
-              {active.seededCount} {unit} đã gán seed · còn {unseeded} {unit} unseeded → sẽ random ở bốc thăm
+              {active.seededCount} {unit} đã có seed
             </p>
           </div>
-
-          {isDrawn && (
-            <>
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-300 bg-emerald-950 px-2.5 py-1 rounded-full flex-shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                Đã bốc · bracket v{active.bracketVersion} active
-              </span>
-              <button
-                onClick={handleRedraw}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-zinc-300 border border-zinc-700 hover:text-white hover:border-zinc-500 rounded-md transition-colors flex-shrink-0"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Bốc lại
-              </button>
-            </>
-          )}
         </div>
 
         {/* Team grid */}
@@ -133,7 +117,7 @@ export function TeamsClient({ categories }: { categories: CategoryTeams[] }) {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-5">
               {visible.map((team) => (
-                <TeamCard key={team.id} team={team} onUpload={handleUpload} />
+                <TeamCard key={team.id} team={team} tournamentId={tournamentId} />
               ))}
             </div>
 

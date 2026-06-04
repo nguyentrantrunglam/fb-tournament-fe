@@ -1,19 +1,16 @@
 // 1 "đội" = 1 registration (đơn: 1 VĐV, đôi: 2 VĐV). Dùng cho màn Danh sách đội:
-// gán seed + upload ảnh đội → bốc thăm.
+// gán seed + upload ảnh đội.
 export type TeamPlayer = {
   name: string     // tên hiển thị ngắn, vd "Hùng"
-  initials: string // viết tắt cho avatar, vd "LH"
+  initials: string // viết tắt cho avatar, vd "LH" — tính từ first+last word
 }
 
 export type TeamEntry = {
   id: string
-  seed: number | null      // null = chưa gán seed (random lúc bốc thăm)
-  players: TeamPlayer[]     // 1 đơn / 2 đôi
-  clubName: string | null   // null → hiển thị "Indep."
-  photoUploaded: boolean    // true → "ảnh tự upload"
+  seed: number | null      // null = chưa gán seed
+  players: TeamPlayer[]    // 1 đơn / 2 đôi
+  teamPhotoUrl: string | null
 }
-
-export type CategoryDrawStatus = 'not_drawn' | 'drawn'
 
 // Gói nội dung + danh sách đội của nó (1 tab)
 export type CategoryTeams = {
@@ -23,7 +20,5 @@ export type CategoryTeams = {
   playerCount: 1 | 2
   approvedCount: number
   seededCount: number
-  drawStatus: CategoryDrawStatus
-  bracketVersion: number | null // vd 1 → "bracket v1 active"
   teams: TeamEntry[]
 }
