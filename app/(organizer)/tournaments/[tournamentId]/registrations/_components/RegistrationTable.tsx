@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MoreHorizontal, CheckCircle, XCircle, DollarSign, MinusCircle } from 'lucide-react'
+import { MoreHorizontal, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { PaymentStatusToggle } from '@/components/registration/payment-status-toggle'
 import type {
   RegistrationRow,
   RegistrationStatus,
-  RegistrationPaymentStatus,
+  EditableStatus,
 } from '@/lib/types/registration'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -48,12 +47,17 @@ const STATUS_BADGE: Record<RegistrationStatus, { label: string; cls: string; dot
   withdrawn: { label: 'Withdrawn', cls: 'text-zinc-500 bg-zinc-800',       dot: 'bg-zinc-600' },
 }
 
-// Not used in JSX directly — kept for type completeness reference
-const _PAY_BADGE: Record<RegistrationPaymentStatus, { label: string; cls: string }> = {
-  paid:   { label: 'đã thu',  cls: 'text-emerald-400 bg-emerald-950/60' },
-  unpaid: { label: 'chờ thu', cls: 'text-amber-400 bg-amber-950/50' },
+// Organizer status-edit actions. Each editable status maps to a menu item; the
+// row offers the two targets that differ from its current status.
+const STATUS_ACTIONS: Record<
+  EditableStatus,
+  { label: string; icon: typeof CheckCircle; cls: string }
+> = {
+  approved: { label: 'Duyệt',            icon: CheckCircle, cls: 'text-emerald-400' },
+  pending:  { label: 'Chuyển chờ duyệt', icon: Clock,       cls: 'text-orange-400' },
+  rejected: { label: 'Từ chối',          icon: XCircle,     cls: 'text-red-400' },
 }
-void _PAY_BADGE
+const EDITABLE_STATUSES: EditableStatus[] = ['approved', 'pending', 'rejected']
 
 // ─── Avatar tag ────────────────────────────────────────────────────────────────
 
@@ -68,14 +72,12 @@ function AvatarTag({ name, muted }: { name: string; muted?: boolean }) {
 
 // ─── Row action menu ──────────────────────────────────────────────────────────
 
-type RowAction = 'approve' | 'reject' | 'mark-paid' | 'unmark-paid'
-
 function RowMenu({
   r,
   onAction,
 }: {
   r: RegistrationRow
-  onAction: (rid: string, action: RowAction) => void
+  onAction: (rid: string, target: EditableStatus) => void
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -89,8 +91,9 @@ function RowMenu({
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  const isPending = r.status === 'pending'
-  const isPaid = r.paymentStatus === 'paid'
+  // Withdrawn registrations are terminal — organizers cannot re-edit them.
+  const editable = r.status !== 'withdrawn'
+  const targets = EDITABLE_STATUSES.filter((s) => s !== r.status)
 
   return (
     <div ref={ref} className="relative">
@@ -102,20 +105,17 @@ function RowMenu({
       </button>
       {open && (
         <div className="absolute right-0 z-30 mt-1 w-44 py-1 bg-zinc-800 border border-zinc-700 rounded-md shadow-xl">
-          {isPending && (
-            <>
-              <MenuItem icon={CheckCircle} label="Approve" cls="text-emerald-400"
-                onClick={() => { onAction(r.id, 'approve'); setOpen(false) }} />
-              <MenuItem icon={XCircle} label="Từ chối" cls="text-red-400"
-                onClick={() => { onAction(r.id, 'reject'); setOpen(false) }} />
-            </>
+          {editable ? (
+            targets.map((s) => {
+              const a = STATUS_ACTIONS[s]
+              return (
+                <MenuItem key={s} icon={a.icon} label={a.label} cls={a.cls}
+                  onClick={() => { onAction(r.id, s); setOpen(false) }} />
+              )
+            })
+          ) : (
+            <p className="px-3 py-2 text-[12px] text-zinc-500">Đội đã rút — không thể chỉnh</p>
           )}
-          {isPaid
-            ? <MenuItem icon={MinusCircle} label="Bỏ đánh dấu đã thu" cls="text-amber-400"
-                onClick={() => { onAction(r.id, 'unmark-paid'); setOpen(false) }} />
-            : <MenuItem icon={DollarSign} label="Đánh dấu đã thu" cls="text-emerald-400"
-                onClick={() => { onAction(r.id, 'mark-paid'); setOpen(false) }} />
-          }
         </div>
       )}
     </div>
@@ -138,12 +138,11 @@ function MenuItem({ icon: Icon, label, cls, onClick }: {
 
 // ─── Row ─────────────────────────────────────────────────────────────────────
 
-function Row({ r, checked, onToggle, onAction, tournamentId }: {
+function Row({ r, checked, onToggle, onAction }: {
   r: RegistrationRow
   checked: boolean
   onToggle: (id: string) => void
-  onAction: (rid: string, action: RowAction) => void
-  tournamentId: string
+  onAction: (rid: string, target: EditableStatus) => void
 }) {
   const status = STATUS_BADGE[r.status]
   const dimmed = r.status === 'withdrawn' || r.status === 'rejected'
@@ -178,15 +177,7 @@ function Row({ r, checked, onToggle, onAction, tournamentId }: {
         <span className="text-[12px] font-mono text-zinc-300">{r.categoryCode}</span>
       </td>
       <td className="py-3 pr-4">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="text-[13px] text-white tabular-nums">{formatFee(r.fee)}</span>
-          <PaymentStatusToggle
-            tournamentId={tournamentId}
-            registrationId={r.id}
-            paymentStatus={r.paymentStatus}
-            disabled={dimmed}
-          />
-        </span>
+        <span className="text-[13px] text-white tabular-nums">{formatFee(r.fee)}</span>
       </td>
       <td className="py-3 pr-4">
         <span className="text-[12px] text-zinc-400 font-mono tabular-nums">{formatDate(r.registeredAt)}</span>
@@ -213,11 +204,10 @@ type Props = {
   allChecked: boolean
   onToggleRow: (id: string) => void
   onToggleAll: () => void
-  onRowAction: (rid: string, action: RowAction) => void
-  tournamentId: string
+  onRowAction: (rid: string, target: EditableStatus) => void
 }
 
-export function RegistrationTable({ rows, selected, allChecked, onToggleRow, onToggleAll, onRowAction, tournamentId }: Props) {
+export function RegistrationTable({ rows, selected, allChecked, onToggleRow, onToggleAll, onRowAction }: Props) {
   return (
     <table className="w-full">
       <thead>
@@ -238,7 +228,7 @@ export function RegistrationTable({ rows, selected, allChecked, onToggleRow, onT
       <tbody>
         {rows.map((r) => (
           <Row key={r.id} r={r} checked={selected.has(r.id)} onToggle={onToggleRow}
-            onAction={onRowAction} tournamentId={tournamentId} />
+            onAction={onRowAction} />
         ))}
       </tbody>
     </table>

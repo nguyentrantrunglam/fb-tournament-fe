@@ -5,15 +5,13 @@ import {
   createSelfRegistration,
   createOrganizerRegistration,
   bulkRegister,
-  approveRegistration,
-  rejectRegistration,
+  setRegistrationStatus,
   withdrawRegistration,
-  markPaidRegistration,
-  unmarkPaidRegistration,
   setSeed,
   setTeamPhoto,
   type BulkRow,
 } from './client'
+import type { EditableStatus } from '@/lib/types/registration'
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
@@ -92,23 +90,32 @@ export function useBulkRegister(tournamentId: string) {
   })
 }
 
-export function useApproveRegistration(tournamentId: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (rid: string) => approveRegistration(rid),
-    meta: { success: 'Đã duyệt đăng ký' },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: registrationKeys.list(tournamentId) })
-    },
-  })
+const STATUS_SUCCESS: Record<EditableStatus, string> = {
+  approved: 'Đã duyệt đăng ký',
+  pending: 'Đã chuyển về chờ duyệt',
+  rejected: 'Đã từ chối đăng ký',
 }
 
-export function useRejectRegistration(tournamentId: string) {
+/**
+ * Free-edit registration status (pending/approved/rejected). Replaces the old
+ * approve/reject/mark-paid mutations — status is now the single source of truth.
+ */
+export function useSetStatus(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ rid, reason }: { rid: string; reason?: string }) =>
-      rejectRegistration(rid, reason),
-    meta: { success: 'Đã từ chối đăng ký' },
+    mutationFn: ({
+      rid,
+      status,
+      reason,
+    }: {
+      rid: string
+      status: EditableStatus
+      reason?: string
+    }) => setRegistrationStatus(rid, status, reason),
+    meta: {
+      success: (_data: unknown, vars: unknown) =>
+        STATUS_SUCCESS[(vars as { status: EditableStatus }).status],
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: registrationKeys.list(tournamentId) })
     },
@@ -120,28 +127,6 @@ export function useWithdrawRegistration(tournamentId: string) {
   return useMutation({
     mutationFn: (rid: string) => withdrawRegistration(rid),
     meta: { success: 'Đã rút đăng ký' },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: registrationKeys.list(tournamentId) })
-    },
-  })
-}
-
-export function useMarkPaid(tournamentId: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (rid: string) => markPaidRegistration(rid),
-    meta: { success: 'Đã đánh dấu đã thu' },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: registrationKeys.list(tournamentId) })
-    },
-  })
-}
-
-export function useUnmarkPaid(tournamentId: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (rid: string) => unmarkPaidRegistration(rid),
-    meta: { success: 'Đã bỏ đánh dấu đã thu' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: registrationKeys.list(tournamentId) })
     },

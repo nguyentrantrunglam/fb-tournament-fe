@@ -1,4 +1,9 @@
 export type RegistrationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
+// Statuses an organizer may set via PATCH /registrations/:rid/status.
+// 'withdrawn' is intentionally excluded — it has its own ownership-aware flow.
+export type EditableStatus = 'pending' | 'approved' | 'rejected'
+// Kept to match the backend list payload (still returns paymentStatus); no longer
+// rendered in the registrations UI.
 export type RegistrationPaymentStatus = 'paid' | 'unpaid'
 
 // Slim row cho bảng quản lý đăng ký (BTC). CCCD/SĐT đã mask để không lộ PII.

@@ -1,5 +1,5 @@
 import { api } from '@/lib/api/client'
-import type { RegistrationRow } from '@/lib/types/registration'
+import type { RegistrationRow, EditableStatus } from '@/lib/types/registration'
 
 // ─── Response shapes ───────────────────────────────────────────────────────────
 
@@ -86,27 +86,24 @@ export async function bulkRegister(
 
 // ─── State transitions ────────────────────────────────────────────────────────
 
-export async function approveRegistration(rid: string): Promise<ActionResponse> {
-  return api.post<ActionResponse>(`/registrations/${rid}/approve`)
-}
-
-export async function rejectRegistration(
+/**
+ * Organizer free-edit of registration status (pending/approved/rejected).
+ * Backend enforces slot accounting + atomic transitions. Errors (CATEGORY_FULL,
+ * CONFLICT, INVALID_LIFECYCLE_TRANSITION) surface via the global mutation toast.
+ */
+export async function setRegistrationStatus(
   rid: string,
+  status: EditableStatus,
   reason?: string,
 ): Promise<ActionResponse> {
-  return api.post<ActionResponse>(`/registrations/${rid}/reject`, reason ? { reason } : {})
+  return api.patch<ActionResponse>(
+    `/registrations/${rid}/status`,
+    reason ? { status, reason } : { status },
+  )
 }
 
 export async function withdrawRegistration(rid: string): Promise<ActionResponse> {
   return api.post<ActionResponse>(`/registrations/${rid}/withdraw`)
-}
-
-export async function markPaidRegistration(rid: string): Promise<ActionResponse> {
-  return api.post<ActionResponse>(`/registrations/${rid}/mark-paid`)
-}
-
-export async function unmarkPaidRegistration(rid: string): Promise<ActionResponse> {
-  return api.post<ActionResponse>(`/registrations/${rid}/unmark-paid`)
 }
 
 // ─── Config: seed + team photo ────────────────────────────────────────────────

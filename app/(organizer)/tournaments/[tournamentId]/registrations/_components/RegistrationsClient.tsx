@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { Download, UserPlus, Upload, Search, CreditCard, X, Settings2 } from 'lucide-react'
+import { Download, UserPlus, Upload, Search, X, Settings2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader, PageBody } from '../../_components/PageLayout'
 import { InfiniteScrollSentinel } from '@/components/infinite-scroll-sentinel'
@@ -10,11 +10,11 @@ import { RegistrationTable } from './RegistrationTable'
 import { ConfigTeamDialog } from './ConfigTeamDialog'
 import { OrganizerSingleForm } from '@/components/registration/organizer-single-form'
 import { OrganizerBulkForm } from '@/components/registration/organizer-bulk-form'
-import { useRegistrations, useApproveRegistration, useRejectRegistration, useMarkPaid, useUnmarkPaid } from '@/lib/registrations/queries'
+import { useRegistrations, useSetStatus } from '@/lib/registrations/queries'
 import { useRegistrationsRealtime } from '@/lib/registrations/use-registrations-realtime'
 import { fetchCategories } from '@/lib/tournaments/api'
 import { useQuery } from '@tanstack/react-query'
-import type { RegistrationRow, RegistrationStatus, CategoryFilterOption } from '@/lib/types/registration'
+import type { RegistrationRow, RegistrationStatus, EditableStatus, CategoryFilterOption } from '@/lib/types/registration'
 
 const PAGE_SIZE = 20
 type StatusTab = 'all' | RegistrationStatus
@@ -57,10 +57,7 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
     staleTime: 60_000,
   })
 
-  const approve = useApproveRegistration(tournamentId)
-  const reject = useRejectRegistration(tournamentId)
-  const markPaid = useMarkPaid(tournamentId)
-  const unmarkPaid = useUnmarkPaid(tournamentId)
+  const setStatus = useSetStatus(tournamentId)
 
   const countByCat = useMemo(() => {
     const m: Record<string, number> = {}
@@ -103,15 +100,11 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
   function toggleRow(id: string) { setSelectedRows((p) => toggleInSet(p, id)) }
   function toggleAll() { setSelectedRows(allChecked ? new Set() : new Set(visibleRows.map((r) => r.id))) }
 
-  function bulkApprove() { selectedRows.forEach((rid) => approve.mutate(rid)) }
-  function bulkMarkPaid() { selectedRows.forEach((rid) => markPaid.mutate(rid)) }
-  function bulkReject() { selectedRows.forEach((rid) => reject.mutate({ rid })) }
+  function bulkApprove() { selectedRows.forEach((rid) => setStatus.mutate({ rid, status: 'approved' })) }
+  function bulkReject() { selectedRows.forEach((rid) => setStatus.mutate({ rid, status: 'rejected' })) }
 
-  function handleRowAction(rid: string, action: 'approve' | 'reject' | 'mark-paid' | 'unmark-paid') {
-    if (action === 'approve') approve.mutate(rid)
-    else if (action === 'reject') reject.mutate({ rid })
-    else if (action === 'mark-paid') markPaid.mutate(rid)
-    else unmarkPaid.mutate(rid)
+  function handleRowAction(rid: string, target: EditableStatus) {
+    setStatus.mutate({ rid, status: target })
   }
 
   // Approved rows surfaced by current filters for ConfigTeamDialog
@@ -160,7 +153,6 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
               className="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-8 pr-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors" />
           </div>
           <CategoryFilterDropdown categories={categories} selected={selectedCats} counts={countByCat} onToggle={toggleCat} onClear={() => setSelectedCats(new Set())} />
-          <FilterBtn icon={CreditCard} label="Thanh toán" />
         </div>
       </div>
 
@@ -173,7 +165,6 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
                 {selectedRows.size} đăng ký đã chọn
               </span>
               <BulkAction label="Approve tất cả" onClick={bulkApprove} />
-              <BulkAction label="Đánh dấu đã thu" onClick={bulkMarkPaid} />
               <BulkAction label="Từ chối" onClick={bulkReject} />
               <button onClick={() => setSelectedRows(new Set())} className="ml-auto flex items-center gap-1 text-[12px] text-zinc-500 hover:text-zinc-300 transition-colors">
                 <X className="w-3.5 h-3.5" /> Bỏ chọn
@@ -182,7 +173,7 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
           )}
           <div className="mt-4">
             <RegistrationTable rows={visibleRows} selected={selectedRows} allChecked={allChecked}
-              onToggleRow={toggleRow} onToggleAll={toggleAll} onRowAction={handleRowAction} tournamentId={tournamentId} />
+              onToggleRow={toggleRow} onToggleAll={toggleAll} onRowAction={handleRowAction} />
           </div>
           <InfiniteScrollSentinel hasMore={hasMore} onLoadMore={loadMore} />
           <p className="text-center mt-2 text-[12px] text-zinc-600">
@@ -208,14 +199,6 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
 function HeaderBtn({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex items-center gap-1.5 px-3 py-2 text-sm border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 rounded-md transition-colors">
-      <Icon className="w-3.5 h-3.5" />{label}
-    </button>
-  )
-}
-
-function FilterBtn({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
-  return (
-    <button className="flex items-center gap-1.5 px-3 py-2 text-sm border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 rounded-md transition-colors">
       <Icon className="w-3.5 h-3.5" />{label}
     </button>
   )
