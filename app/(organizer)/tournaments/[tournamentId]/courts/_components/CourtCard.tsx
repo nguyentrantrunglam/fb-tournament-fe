@@ -44,9 +44,9 @@ export function CourtCard({
           </div>
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-white leading-tight">{court.name}</p>
-            <span className={cn('inline-flex items-center gap-1.5 mt-0.5 text-[12px]', status.textCls)}>
-              <span className={cn('w-1.5 h-1.5 rounded-full', status.dotCls)} />
-              {status.label}
+            <span className={cn('inline-flex items-center gap-1.5 mt-0.5 text-[12px]', status?.textCls)}>
+              <span className={cn('w-1.5 h-1.5 rounded-full', status?.dotCls)} />
+              {status?.label}
             </span>
           </div>
         </div>

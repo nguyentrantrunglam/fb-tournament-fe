@@ -14,6 +14,8 @@ export type RegistrationRow = {
   paymentStatus: RegistrationPaymentStatus
   registeredAt: string // ISO datetime
   status: RegistrationStatus
+  seed: number | null
+  teamPhotoUrl: string | null
 }
 
 // Option cho panel filter theo nội dung

@@ -1,7 +1,7 @@
 import { api } from '@/lib/api/client'
 import type { TournamentStatus, TournamentSponsor } from '@/lib/types/tournament'
 import type { CategoryWithStats, GenderRequirement, CategoryFormat } from '@/lib/types/category'
-import type { RegistrationRow, CategoryFilterOption, RegistrationStatus, RegistrationPaymentStatus } from '@/lib/types/registration'
+import type { RegistrationRow, CategoryFilterOption } from '@/lib/types/registration'
 import type { CreateTournamentFormData } from '@/lib/validators/create-tournament'
 import type { CreateCategoryInput } from '@/lib/validators/category'
 
@@ -215,10 +215,14 @@ export async function fetchCategoryFilterOptions(tid: string): Promise<CategoryF
 }
 
 export async function fetchRegistrations(tid: string): Promise<RegistrationRow[]> {
-  // TODO: GET /tournaments/:tid/registrations endpoint not yet implemented (Phase 4).
-  // Returns empty array so the registrations page renders without crashing.
-  void tid
-  return []
+  try {
+    const res = await api.get<{ registrations: RegistrationRow[]; totalCount: number }>(
+      `/tournaments/${tid}/registrations`,
+    )
+    return res.registrations ?? []
+  } catch {
+    return []
+  }
 }
 
 // ─── Kept for compatibility ────────────────────────────────────────────────────

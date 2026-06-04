@@ -252,7 +252,7 @@ export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreat
           </div>
 
           {/* Footer */}
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 bg-zinc-900 border-zinc-800">
             <button
               type="button"
               onClick={handleClose}

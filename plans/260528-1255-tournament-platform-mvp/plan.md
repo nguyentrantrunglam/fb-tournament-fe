@@ -55,7 +55,9 @@ User chose **full rewire off Firebase**. Safe execution order = build all NestJS
 - ✅ Fees + Referees modules (aggregate fees PATCH atomic; referee list/grant/invite/remove + PII-safe search-users) — `d330382`. **API now covers ALL implemented Firebase features.** e2e 57/57.
 - ✅ Ran api locally (docker mongo RS + pnpm start:dev) + live smoke (register/login/me/authz/tournament+category create) — all green.
 
-**Remaining:** coordinated **web cutover** (auth-provider + all feature data layers + storage uploads Firebase→NestJS REST/Spaces, remove `app/api/*`) → **remove Firebase** (`functions/`, `lib/firebase`, deps) after parity+Spaces+data checks. Bracket/Match/Registration (phases 5-8) not yet built in either stack.
+- ✅ P04 Registration + Payment (api+web): registrations module (self/organizer/bulk create, approve/reject/withdraw, mark/unmark-paid, seed, team-photo), pure gender-requirement + partner-eligibility domain validators, **race-safe slot cap via atomic `slotsUsed` `$inc` reservation**, displayName-only PII-safe partner search, wired categories close/delete guards. Web: registration UI (forms, partner-picker, bulk, config-đội, payment toggle) + TanStack hooks + Socket.IO `registration:updated` realtime. e2e **85/85** + unit **27/27** green; web build clean. Code-reviewed (H1 slot race, H2 search oracle, M1 team-photo URL fixed).
+
+**Remaining:** Web feature data layers already on REST (app/ routes touch Firebase 0×). Residual Firebase cleanup: `lib/referees/admin.ts`, `lib/courts/admin.ts`, `lib/firebase/*`, `functions/`. Bracket/Match (phases 5-8) not yet built. **Next: P05 Bracket Generation.**
 
 ## Phases
 
@@ -64,7 +66,7 @@ User chose **full rewire off Firebase**. Safe execution order = build all NestJS
 | 1 | [Project Setup](./phase-01-project-setup.md) | ✅ Done (api+web client) |
 | 2 | [Auth and User](./phase-02-auth-and-user.md) | API ✅ done · web cutover pending |
 | 3 | [Tournament and Category](./phase-03-tournament-and-category.md) | API ✅ done · web cutover pending |
-| 4 | [Registration and Payment](./phase-04-registration-and-payment.md) | Pending |
+| 4 | [Registration and Payment](./phase-04-registration-and-payment.md) | ✅ Done (api+web) |
 | 5 | [Bracket Generation](./phase-05-bracket-generation.md) | Pending |
 | 6 | [Match Operation](./phase-06-match-operation.md) | Pending |
 | 7 | [Edit Score and Cascade Revert](./phase-07-edit-score-and-cascade-revert.md) | Pending |

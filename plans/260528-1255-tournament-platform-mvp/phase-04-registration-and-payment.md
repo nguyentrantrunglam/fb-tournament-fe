@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Registration and Payment"
-status: pending
+status: done
 priority: P1
 effort: "5-6d"
 dependencies: [3]
