@@ -12,7 +12,6 @@ export function useCourts(tournamentId: string) {
   return useQuery({
     queryKey: courtKeys.page(tournamentId),
     queryFn: () => fetchCourtPageData(tournamentId),
-    staleTime: 15_000,
   })
 }
 
@@ -36,7 +35,10 @@ export function useAssignReferee(tournamentId: string) {
   return useMutation({
     mutationFn: ({ courtId, uid }: { courtId: string; uid: string | null }) =>
       assignReferee(tournamentId, courtId, uid),
-    // optimistic — không cần success toast, lỗi đã do MutationCache xử lý
+    meta: {
+      success: (_data: unknown, vars: unknown) =>
+        (vars as { uid: string | null }).uid ? 'Đã gán trọng tài' : 'Đã gỡ trọng tài',
+    },
     onMutate: async ({ courtId, uid }) => {
       await qc.cancelQueries({ queryKey: courtKeys.page(tournamentId) })
       const prev = qc.getQueryData<CourtPageData>(courtKeys.page(tournamentId))

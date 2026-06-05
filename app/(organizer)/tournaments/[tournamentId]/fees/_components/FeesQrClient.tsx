@@ -72,8 +72,8 @@ export function FeesQrClient({ tournamentId }: { tournamentId: string }) {
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, fee } : c)))
   }
 
-  function handleToggleRegistration(id: string, next: CategoryRegistrationStatus) {
-    toggleMutation.mutate({ categoryId: id, registrationStatus: next })
+  function handleToggleRegistration(id: string, current: CategoryRegistrationStatus, next: 'open' | 'closed') {
+    toggleMutation.mutate({ categoryId: id, currentStatus: current, nextStatus: next })
   }
 
   async function onSubmit(formData: PaymentConfigFormData) {

@@ -35,7 +35,7 @@ function RegistrationToggle({
   onToggle,
 }: {
   status: CategoryRegistrationStatus
-  onToggle: (next: CategoryRegistrationStatus) => void
+  onToggle: (current: CategoryRegistrationStatus, next: 'open' | 'closed') => void
 }) {
   const isOpen = status === 'open'
 
@@ -45,7 +45,7 @@ function RegistrationToggle({
       role="switch"
       aria-checked={isOpen}
       aria-label="Cổng đăng ký"
-      onClick={() => onToggle(isOpen ? 'closed' : 'open')}
+      onClick={() => onToggle(status, isOpen ? 'closed' : 'open')}
       className="flex items-center gap-2 flex-shrink-0"
       title={isOpen ? 'Đóng cổng đăng ký' : 'Mở cổng đăng ký'}
     >
@@ -77,7 +77,7 @@ function FeeRow({
 }: {
   cat: CategoryFeeItem
   onFeeChange: (id: string, fee: number) => void
-  onToggleRegistration: (id: string, next: CategoryRegistrationStatus) => void
+  onToggleRegistration: (id: string, current: CategoryRegistrationStatus, next: 'open' | 'closed') => void
 }) {
   const unit = cat.playerCount === 1 ? '/ VĐV' : '/ cặp'
 
@@ -131,7 +131,7 @@ function FeeRow({
       <div className="pl-3 ml-1 border-l border-zinc-800">
         <RegistrationToggle
           status={cat.registrationStatus}
-          onToggle={(next) => onToggleRegistration(cat.id, next)}
+          onToggle={(current, next) => onToggleRegistration(cat.id, current, next)}
         />
       </div>
     </div>
@@ -141,7 +141,7 @@ function FeeRow({
 type Props = {
   categories: CategoryFeeItem[]
   onFeeChange: (id: string, fee: number) => void
-  onToggleRegistration: (id: string, next: CategoryRegistrationStatus) => void
+  onToggleRegistration: (id: string, current: CategoryRegistrationStatus, next: 'open' | 'closed') => void
 }
 
 export function CategoryFeeList({ categories, onFeeChange, onToggleRegistration }: Props) {

@@ -6,16 +6,27 @@ export type EditableStatus = 'pending' | 'approved' | 'rejected'
 // rendered in the registrations UI.
 export type RegistrationPaymentStatus = 'paid' | 'unpaid'
 
-// Slim row cho bảng quản lý đăng ký (BTC). CCCD/SĐT đã mask để không lộ PII.
+// Slim row cho bảng quản lý đăng ký (BTC).
 export type RegistrationRow = {
   id: string
+  // Primary athlete
   athleteName: string
-  cccdLast4: string   // 4 số cuối, vd "1234"
-  phoneMasked: string // vd "0903…"
-  partnerName: string | null // null nếu nội dung đơn
+  athleteAvatarUrl: string | null
+  athleteGender: 'male' | 'female' | null
+  athleteDob: string | null         // ISO datetime
+  athleteCccd: string | null        // full national ID (organizer view)
+  athletePhone: string | null       // full phone (organizer view)
+  // Partner (doubles only)
+  partnerName: string | null
+  partnerAvatarUrl: string | null
+  partnerGender: 'male' | 'female' | null
+  partnerDob: string | null
+  partnerCccd: string | null
+  partnerPhone: string | null
+  // Registration
   categoryId: string
-  categoryCode: string // MS / WS / MD / MX / OPEN
-  fee: number          // feeSnapshot lúc đăng ký (VND)
+  categoryCode: string
+  fee: number
   paymentStatus: RegistrationPaymentStatus
   registeredAt: string // ISO datetime
   status: RegistrationStatus

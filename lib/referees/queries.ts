@@ -10,7 +10,6 @@ export function useReferees(tournamentId: string) {
   return useQuery({
     queryKey: refereeKeys.list(tournamentId),
     queryFn: () => fetchRefereesWithStats(tournamentId),
-    staleTime: 30_000,
   })
 }
 

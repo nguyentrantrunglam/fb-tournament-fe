@@ -3,7 +3,13 @@ import type { CategoryTeams, TeamEntry, TeamPlayer } from '@/lib/types/team'
 
 // ─── API response shapes ───────────────────────────────────────────────────────
 
-type ApiPlayer = { name: string }
+type ApiPlayer = {
+  name: string
+  gender: 'male' | 'female' | null
+  dob: string | null
+  cccd: string | null
+  phone: string | null
+}
 
 type ApiTeam = {
   id: string
@@ -36,6 +42,10 @@ function mapTeam(raw: ApiTeam): TeamEntry {
   const players: TeamPlayer[] = raw.players.map((p) => ({
     name: p.name,
     initials: computeInitials(p.name),
+    gender: p.gender ?? null,
+    dob: p.dob ?? null,
+    cccd: p.cccd ?? null,
+    phone: p.phone ?? null,
   }))
   return { id: raw.id, seed: raw.seed, players, teamPhotoUrl: raw.teamPhotoUrl }
 }

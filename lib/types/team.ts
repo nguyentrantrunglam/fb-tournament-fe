@@ -1,8 +1,12 @@
 // 1 "đội" = 1 registration (đơn: 1 VĐV, đôi: 2 VĐV). Dùng cho màn Danh sách đội:
 // gán seed + upload ảnh đội.
 export type TeamPlayer = {
-  name: string     // tên hiển thị ngắn, vd "Hùng"
-  initials: string // viết tắt cho avatar, vd "LH" — tính từ first+last word
+  name: string
+  initials: string
+  gender: 'male' | 'female' | null
+  dob: string | null    // ISO datetime
+  cccd: string | null   // full national ID (organizer view)
+  phone: string | null  // full phone (organizer view)
 }
 
 export type TeamEntry = {
