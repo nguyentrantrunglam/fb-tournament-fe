@@ -1,6 +1,8 @@
-// Hỗ trợ 3 thể thức. Lưu ý: schema hiện tại (Category.format) mới chỉ 'single_elim';
-// round_robin + group_ko là mở rộng (spec riêng ở P4 theo bracket-algorithm-spec.md).
+// Hỗ trợ 3 thể thức thi đấu, khớp với Category.format ở backend.
 export type BracketFormat = 'single_elim' | 'round_robin' | 'group_ko'
+
+// Lifecycle: skeleton = empty frame built, drawn = teams assigned via draw.
+export type BracketStatus = 'skeleton' | 'drawn'
 
 export type MatchState = 'pending' | 'live' | 'completed' | 'bye'
 
@@ -70,10 +72,13 @@ export type BracketMeta = {
 
 export type CategoryBracket = {
   id: string
+  categoryId: string
   code: string
   name: string
   countLabel: string // '16 VĐV' | '8' | '12'
   format: BracketFormat
+  status: BracketStatus
+  drawVersion: number
   meta: BracketMeta
   knockout?: KnockoutRound[]
   roundRobin?: RoundRobinView

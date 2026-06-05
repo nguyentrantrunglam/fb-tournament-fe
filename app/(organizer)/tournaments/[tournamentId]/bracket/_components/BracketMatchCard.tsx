@@ -80,7 +80,7 @@ export function BracketMatchCard({ match, final = false }: { match: BracketMatch
             <span className="w-4 text-[11px] tabular-nums text-zinc-600 flex-shrink-0 text-center">
               {match.sideA.seed ?? ''}
             </span>
-            <span className="flex-1 min-w-0 text-[13px] text-zinc-200 break-words">{match.sideA.name}</span>
+            <span className="flex-1 min-w-0 text-[13px] text-zinc-200 break-words">{match.sideA.name ?? match.sideA.placeholder}</span>
             <span className="text-[11px] text-emerald-400 flex-shrink-0">tự thắng</span>
           </div>
           <div className="border-t border-zinc-800/70" />
