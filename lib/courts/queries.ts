@@ -12,7 +12,6 @@ export function useCourts(tournamentId: string) {
   return useQuery({
     queryKey: courtKeys.page(tournamentId),
     queryFn: () => fetchCourtPageData(tournamentId),
-    staleTime: 15_000,
   })
 }
 

@@ -15,7 +15,6 @@ export default function RegistrationsPage() {
   const { data: cats = [], isLoading: catsLoading } = useQuery({
     queryKey: ['category-filter-options', tournament.id],
     queryFn: () => fetchCategoryFilterOptions(tournament.id),
-    staleTime: 60_000,
   })
 
   if (regLoading || catsLoading) {

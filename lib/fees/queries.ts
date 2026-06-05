@@ -11,7 +11,6 @@ export function useFeesData(tournamentId: string) {
   return useQuery({
     queryKey: feesKeys.data(tournamentId),
     queryFn: () => fetchFeesData(tournamentId),
-    staleTime: 60_000,
   })
 }
 

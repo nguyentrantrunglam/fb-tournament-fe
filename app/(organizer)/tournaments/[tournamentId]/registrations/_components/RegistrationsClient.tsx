@@ -54,7 +54,6 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
   const { data: fullCategories = [] } = useQuery({
     queryKey: ['categories-full', tournamentId],
     queryFn: () => fetchCategories(tournamentId),
-    staleTime: 60_000,
   })
 
   const setStatus = useSetStatus(tournamentId)

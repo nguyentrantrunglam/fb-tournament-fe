@@ -31,7 +31,6 @@ export function useRegistrations(tournamentId: string) {
   return useQuery({
     queryKey: registrationKeys.list(tournamentId),
     queryFn: () => fetchRegistrations(tournamentId),
-    staleTime: 30_000,
   })
 }
 

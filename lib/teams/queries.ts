@@ -15,7 +15,6 @@ export function useTeams(tournamentId: string) {
   return useQuery({
     queryKey: teamKeys.list(tournamentId),
     queryFn: () => fetchTeams(tournamentId),
-    staleTime: 30_000,
   })
 }
 
