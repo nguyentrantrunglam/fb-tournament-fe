@@ -128,7 +128,7 @@ export function OrganizerBulkForm({
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-[720px] max-h-[85vh] flex flex-col">
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-4xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white text-base">Bulk import đăng ký</DialogTitle>
             <p className="text-[12px] text-zinc-500 mt-0.5">
@@ -171,6 +171,7 @@ export function OrganizerBulkForm({
 
                     {/* Primary athlete */}
                     <PartnerPicker
+                      context="organizer"
                       tournamentId={tournamentId}
                       primaryGender={null}
                       genderRequirement={cat?.genderRequirement ?? 'unrestricted'}
@@ -182,6 +183,7 @@ export function OrganizerBulkForm({
                     {/* Partner */}
                     {isDoubles ? (
                       <PartnerPicker
+                        context="organizer"
                         tournamentId={tournamentId}
                         primaryGender={row.primary?.gender ?? null}
                         genderRequirement={cat!.genderRequirement}

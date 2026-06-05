@@ -28,13 +28,16 @@ export async function saveFees(
 export async function toggleRegistration(
   tid: string,
   categoryId: string,
-  registrationStatus: CategoryRegistrationStatus,
+  currentStatus: CategoryRegistrationStatus,
+  nextStatus: 'open' | 'closed',
 ): Promise<void> {
-  void tid // tid not needed — api resolves tournament from categoryId
-  const action = registrationStatus === 'open'
-    ? 'open'
-    : registrationStatus === 'closed'
-      ? 'close'
-      : 'reopen'
+  void tid
+  let action: string
+  if (nextStatus === 'closed') {
+    action = 'close'
+  } else {
+    // open from not_open → 'open'; reopen from closed → 'reopen'
+    action = currentStatus === 'closed' ? 'reopen' : 'open'
+  }
   await api.post<{ ok: boolean }>(`/categories/${categoryId}/registration/${action}`)
 }

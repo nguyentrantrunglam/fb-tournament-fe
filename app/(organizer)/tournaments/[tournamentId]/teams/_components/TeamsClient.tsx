@@ -5,10 +5,92 @@ import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '../../_components/PageLayout'
 import { InfiniteScrollSentinel } from '@/components/infinite-scroll-sentinel'
-import { TeamCard } from './TeamCard'
+import { SeedInput } from '@/components/registration/seed-input'
+import { TeamPhotoUploader } from '@/components/registration/team-photo-uploader'
+import { PersonTeamTable, type TeamTableRow } from '@/components/registration/person-team-table'
 import { useTeams, useTeamsRealtime } from '@/lib/teams/queries'
+import type { TeamEntry, CategoryTeams } from '@/lib/types/team'
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 30
+
+// ─── Map TeamEntry[] → TeamTableRow[] ────────────────────────────────────────
+
+function toTableRows(teams: TeamEntry[], tournamentId: string): TeamTableRow[] {
+  return teams.map((team, i) => {
+    const [p0, p1] = team.players
+
+    const players: TeamTableRow['players'] = p1
+      ? [
+          { name: p0!.name, avatarUrl: null, cccd: p0!.cccd, dob: p0!.dob, phone: p0!.phone, gender: p0!.gender },
+          { name: p1.name,  avatarUrl: null, cccd: p1.cccd,  dob: p1.dob,  phone: p1.phone,  gender: p1.gender  },
+        ]
+      : [
+          { name: p0!.name, avatarUrl: null, cccd: p0!.cccd, dob: p0!.dob, phone: p0!.phone, gender: p0!.gender },
+        ]
+
+    return {
+      id: team.id,
+      players,
+      leadCells: (span) => (
+        <>
+          <td rowSpan={span} className="px-4 text-[12px] text-zinc-600 tabular-nums align-middle w-10">
+            {i + 1}
+          </td>
+          <td rowSpan={span} className="pr-4 align-middle w-20">
+            <TeamPhotoUploader
+              tournamentId={tournamentId}
+              registrationId={team.id}
+              currentPhotoUrl={team.teamPhotoUrl}
+              compact
+            />
+          </td>
+        </>
+      ),
+      trailCells: (span) => (
+        <td rowSpan={span} className="pr-4 align-middle w-36">
+          <SeedInput
+            tournamentId={tournamentId}
+            registrationId={team.id}
+            currentSeed={team.seed}
+          />
+        </td>
+      ),
+    }
+  })
+}
+
+// ─── Table wrapper ────────────────────────────────────────────────────────────
+
+const TH = 'py-2.5 pr-4 text-left text-[10px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap'
+
+function TeamTable({ teams, tournamentId, active }: { teams: TeamEntry[]; tournamentId: string; active: CategoryTeams }) {
+  if (teams.length === 0) {
+    return (
+      <div className="mt-4 flex items-center justify-center h-40 rounded-xl border border-dashed border-zinc-800 text-[13px] text-zinc-600">
+        Chưa có đội nào approved cho nội dung này.
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-zinc-800 overflow-hidden">
+      <PersonTeamTable
+        rows={toTableRows(teams, tournamentId)}
+        leadHeaders={
+          <>
+            <th className="px-4 py-2.5 w-10" />
+            <th className={cn(TH, 'w-20')}>Ảnh đội</th>
+          </>
+        }
+        trailHeaders={
+          <th className={cn(TH, 'w-36')}>Seed</th>
+        }
+      />
+    </div>
+  )
+}
+
+// ─── Main client ──────────────────────────────────────────────────────────────
 
 export function TeamsClient({ tournamentId }: { tournamentId: string }) {
   const { data: categories = [], isLoading } = useTeams(tournamentId)
@@ -17,10 +99,8 @@ export function TeamsClient({ tournamentId }: { tournamentId: string }) {
   const [activeId, setActiveId] = useState<string>('')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
-  // Derive the resolved active category (last tab by default once data loads)
   const resolvedActiveId = activeId || categories.at(-1)?.id || categories[0]?.id || ''
 
-  // Reset pagination when switching tabs (adjust-state-during-render pattern)
   const [prevActiveId, setPrevActiveId] = useState(resolvedActiveId)
   if (prevActiveId !== resolvedActiveId) {
     setPrevActiveId(resolvedActiveId)
@@ -69,10 +149,7 @@ export function TeamsClient({ tournamentId }: { tournamentId: string }) {
 
       {/* Category tabs */}
       <div className="shrink-0 px-8">
-        <div
-          className="flex items-center gap-1 border-b border-zinc-800 overflow-x-auto"
-          style={{ scrollbarWidth: 'none' }}
-        >
+        <div className="flex items-center gap-1 border-b border-zinc-800 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {categories.map((c) => (
             <button
               key={c.id}
@@ -94,7 +171,7 @@ export function TeamsClient({ tournamentId }: { tournamentId: string }) {
 
       <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-6 pt-5">
         {/* Status bar */}
-        <div className="flex items-center gap-3 mt-5 px-4 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl">
+        <div className="flex items-center gap-3 px-4 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl">
           <div className="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[12px] font-bold text-zinc-300 flex-shrink-0">
             {active.code}
           </div>
@@ -108,26 +185,9 @@ export function TeamsClient({ tournamentId }: { tournamentId: string }) {
           </div>
         </div>
 
-        {/* Team grid */}
-        {active.teams.length === 0 ? (
-          <div className="mt-6 flex items-center justify-center h-40 rounded-xl border border-dashed border-zinc-800 text-[13px] text-zinc-600">
-            Chưa có đội nào approved cho nội dung này.
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-5">
-              {visible.map((team) => (
-                <TeamCard key={team.id} team={team} tournamentId={tournamentId} />
-              ))}
-            </div>
+        <TeamTable teams={visible} tournamentId={tournamentId} active={active} />
 
-            <InfiniteScrollSentinel
-              hasMore={hasMore}
-              onLoadMore={loadMore}
-              label={`Đang tải thêm ${unit}…`}
-            />
-          </>
-        )}
+        <InfiniteScrollSentinel hasMore={hasMore} onLoadMore={loadMore} label={`Đang tải thêm ${unit}…`} />
       </div>
     </div>
   )

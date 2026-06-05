@@ -48,6 +48,23 @@ export async function searchRegistrationUsers(
   }
 }
 
+export async function searchOrganizerUsers(
+  tid: string,
+  q: string,
+  gender?: string,
+): Promise<SearchUsersResult[]> {
+  const params = new URLSearchParams({ q })
+  if (gender) params.set('gender', gender)
+  try {
+    const res = await api.get<{ users: SearchUsersResult[] }>(
+      `/tournaments/${tid}/organizer/user-search?${params.toString()}`,
+    )
+    return res.users ?? []
+  } catch {
+    return []
+  }
+}
+
 // ─── Self registration (current session user is primary) ──────────────────────
 
 export async function createSelfRegistration(

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchRegistrations,
   searchRegistrationUsers,
+  searchOrganizerUsers,
   createSelfRegistration,
   createOrganizerRegistration,
   bulkRegister,
@@ -11,6 +12,7 @@ import {
   setTeamPhoto,
   type BulkRow,
 } from './client'
+import { teamKeys } from '@/lib/teams/queries'
 import type { EditableStatus } from '@/lib/types/registration'
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
@@ -19,6 +21,8 @@ export const registrationKeys = {
   list: (tid: string) => ['registrations', tid] as const,
   userSearch: (tid: string, q: string, gender?: string) =>
     ['registration-user-search', tid, q, gender] as const,
+  organizerUserSearch: (tid: string, q: string, gender?: string) =>
+    ['organizer-user-search', tid, q, gender] as const,
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -36,6 +40,15 @@ export function useUserSearch(tournamentId: string, q: string, gender?: string) 
   return useQuery({
     queryKey: registrationKeys.userSearch(tournamentId, q, gender),
     queryFn: () => searchRegistrationUsers(tournamentId, q, gender),
+    enabled: q.trim().length >= 2,
+    staleTime: 10_000,
+  })
+}
+
+export function useOrganizerUserSearch(tournamentId: string, q: string, gender?: string) {
+  return useQuery({
+    queryKey: registrationKeys.organizerUserSearch(tournamentId, q, gender),
+    queryFn: () => searchOrganizerUsers(tournamentId, q, gender),
     enabled: q.trim().length >= 2,
     staleTime: 10_000,
   })
@@ -156,6 +169,7 @@ export function useSetTeamPhoto(tournamentId: string) {
     meta: { success: 'Đã cập nhật ảnh đội' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: registrationKeys.list(tournamentId) })
+      qc.invalidateQueries({ queryKey: teamKeys.list(tournamentId) })
     },
   })
 }

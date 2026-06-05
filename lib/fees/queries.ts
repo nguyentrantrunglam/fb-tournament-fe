@@ -37,25 +37,25 @@ export function useToggleRegistration(tournamentId: string) {
   return useMutation({
     mutationFn: ({
       categoryId,
-      registrationStatus,
+      currentStatus,
+      nextStatus,
     }: {
       categoryId: string
-      registrationStatus: CategoryRegistrationStatus
-    }) => toggleRegistration(tournamentId, categoryId, registrationStatus),
+      currentStatus: CategoryRegistrationStatus
+      nextStatus: 'open' | 'closed'
+    }) => toggleRegistration(tournamentId, categoryId, currentStatus, nextStatus),
     meta: {
       success: (_data: unknown, vars: unknown) => {
-        const { registrationStatus } = vars as { registrationStatus: CategoryRegistrationStatus }
-        if (registrationStatus === 'open') return 'Đã mở đăng ký'
-        if (registrationStatus === 'closed') return 'Đã đóng đăng ký'
-        return 'Đã huỷ mở đăng ký'
+        const { nextStatus } = vars as { nextStatus: 'open' | 'closed' }
+        return nextStatus === 'open' ? 'Đã mở đăng ký' : 'Đã đóng đăng ký'
       },
     },
-    onMutate: async ({ categoryId, registrationStatus }) => {
+    onMutate: async ({ categoryId, nextStatus }) => {
       await qc.cancelQueries({ queryKey: feesKeys.data(tournamentId) })
       const prev = qc.getQueryData<FeesData>(feesKeys.data(tournamentId))
       qc.setQueryData<FeesData>(feesKeys.data(tournamentId), (old) =>
         old
-          ? { ...old, categories: old.categories.map((c) => (c.id === categoryId ? { ...c, registrationStatus } : c)) }
+          ? { ...old, categories: old.categories.map((c) => (c.id === categoryId ? { ...c, registrationStatus: nextStatus } : c)) }
           : old,
       )
       return { prev }

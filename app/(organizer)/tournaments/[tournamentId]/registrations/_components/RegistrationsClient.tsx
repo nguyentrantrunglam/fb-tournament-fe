@@ -10,7 +10,7 @@ import { RegistrationTable } from './RegistrationTable'
 import { ConfigTeamDialog } from './ConfigTeamDialog'
 import { OrganizerSingleForm } from '@/components/registration/organizer-single-form'
 import { OrganizerBulkForm } from '@/components/registration/organizer-bulk-form'
-import { useRegistrations, useSetStatus } from '@/lib/registrations/queries'
+import { useRegistrations, useSetStatus, useWithdrawRegistration } from '@/lib/registrations/queries'
 import { useRegistrationsRealtime } from '@/lib/registrations/use-registrations-realtime'
 import { fetchCategories } from '@/lib/tournaments/api'
 import { useQuery } from '@tanstack/react-query'
@@ -58,6 +58,7 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
   })
 
   const setStatus = useSetStatus(tournamentId)
+  const withdraw = useWithdrawRegistration(tournamentId)
 
   const countByCat = useMemo(() => {
     const m: Record<string, number> = {}
@@ -76,7 +77,7 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
     return rows.filter((r) => {
       if (tab !== 'all' && r.status !== tab) return false
       if (selectedCats.size > 0 && !selectedCats.has(r.categoryId)) return false
-      if (q && !r.athleteName.toLowerCase().includes(q) && !r.cccdLast4.includes(q)) return false
+      if (q && !r.athleteName.toLowerCase().includes(q) && !(r.athleteCccd ?? '').includes(q)) return false
       return true
     })
   }, [rows, tab, selectedCats, search])
@@ -105,6 +106,10 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
 
   function handleRowAction(rid: string, target: EditableStatus) {
     setStatus.mutate({ rid, status: target })
+  }
+
+  function handleRowWithdraw(rid: string) {
+    withdraw.mutate(rid)
   }
 
   // Approved rows surfaced by current filters for ConfigTeamDialog
@@ -173,7 +178,8 @@ export function RegistrationsClient({ tournamentId, categories, registrations, t
           )}
           <div className="mt-4">
             <RegistrationTable rows={visibleRows} selected={selectedRows} allChecked={allChecked}
-              onToggleRow={toggleRow} onToggleAll={toggleAll} onRowAction={handleRowAction} />
+              onToggleRow={toggleRow} onToggleAll={toggleAll} onRowAction={handleRowAction}
+              onRowWithdraw={handleRowWithdraw} />
           </div>
           <InfiniteScrollSentinel hasMore={hasMore} onLoadMore={loadMore} />
           <p className="text-center mt-2 text-[12px] text-zinc-600">
