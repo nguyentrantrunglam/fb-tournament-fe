@@ -13,6 +13,8 @@ type Props = {
   registrationId: string
   currentPhotoUrl: string | null
   disabled?: boolean
+  /** Hide the inline thumbnail when the parent already renders the photo (e.g. hero). */
+  hidePreview?: boolean
 }
 
 /**
@@ -64,6 +66,7 @@ export function TeamPhotoUploader({
   registrationId,
   currentPhotoUrl,
   disabled,
+  hidePreview,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -110,7 +113,7 @@ export function TeamPhotoUploader({
   return (
     <div className="flex flex-col gap-1.5">
       {/* Preview */}
-      {currentPhotoUrl && (
+      {currentPhotoUrl && !hidePreview && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={currentPhotoUrl}
