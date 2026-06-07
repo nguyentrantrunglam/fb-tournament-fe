@@ -66,6 +66,14 @@ const GENDER_OPTS: GenderOpt[] = [
   { value: 'unrestricted', label: 'Không giới hạn' },
 ]
 
+// ─── Format (thể thức) options ───────────────────────────────────────────────
+
+const FORMAT_OPTS: { value: CreateCategoryInput['format']; label: string }[] = [
+  { value: 'single_elim', label: 'Loại trực tiếp' },
+  { value: 'round_robin', label: 'Vòng tròn tính điểm' },
+  { value: 'group_ko',    label: 'Vòng bảng + Loại trực tiếp' },
+]
+
 // ─── CreateCategoryDialog ──────────────────────────────────────────────────────
 
 type Props = {
@@ -82,6 +90,7 @@ const EMPTY: CreateCategoryInput = {
   name: '',
   playerCount: 1,
   genderRequirement: 'men_only',
+  format: 'single_elim',
   bestOf: 3,
   fee: 0,
   maxTeams: 16,
@@ -112,6 +121,7 @@ export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreat
         name: editing.name,
         playerCount: editing.playerCount,
         genderRequirement: editing.genderRequirement,
+        format: editing.format,
         bestOf: editing.bestOf,
         fee: editing.fee,
         maxTeams: editing.maxTeams,
@@ -206,6 +216,17 @@ export function CreateCategoryDialog({ open, onOpenChange, tournamentId, onCreat
               </select>
             </Field>
           </div>
+
+          {/* Thể thức (format) */}
+          <Field label="Thể thức" required error={errors.format?.message}>
+            <select {...register('format')} className={selectCls}>
+              {FORMAT_OPTS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           {/* Best of + Fee */}
           <div className="grid grid-cols-2 gap-3">

@@ -10,6 +10,8 @@ export const createCategorySchema = z
     name: z.string().min(1, 'Tên không được để trống').max(100, 'Tên tối đa 100 ký tự'),
     playerCount: z.union([z.literal(1), z.literal(2)]),
     genderRequirement: z.enum(['men_only', 'women_only', 'mixed_pair', 'unrestricted']),
+    // Thể thức thi đấu — quyết định cách sinh sơ đồ (loại trực tiếp / vòng tròn / vòng bảng + loại).
+    format: z.enum(['single_elim', 'round_robin', 'group_ko']),
     bestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]),
     fee: z.number().min(0, 'Lệ phí không âm'),
     maxTeams: z.number().min(2, 'Ít nhất 2 đội').max(256, 'Tối đa 256 đội'),
